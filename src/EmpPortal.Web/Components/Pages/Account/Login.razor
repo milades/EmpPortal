@@ -52,24 +52,44 @@
 
         <div class="field-group">
             <label for="upn">نام کاربری سازمانی</label>
-            <InputText id="upn"
-                       class="form-input"
-                       @bind-Value="Input.Upn"
-                       autocomplete="username"
-                       inputmode="email"
-                       aria-required="true"
-                       placeholder="user@company.local" />
+            <div class="input-shell">
+                <span class="input-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                        <path d="M20 21a8 8 0 0 0-16 0" />
+                        <circle cx="12" cy="7" r="4" />
+                    </svg>
+                </span>
+                <InputText id="upn"
+                           class="form-input"
+                           @bind-Value="Input.Upn"
+                           autocomplete="username"
+                           inputmode="email"
+                           dir="ltr"
+                           aria-describedby="upn-hint"
+                           aria-required="true"
+                           placeholder="user@company.local" />
+            </div>
+            <small id="upn-hint" class="field-hint">نام کاربری را با قالب UPN وارد کنید.</small>
             <ValidationMessage For="() => Input.Upn" class="field-error" />
         </div>
 
         <div class="field-group">
             <label for="password">رمز عبور</label>
-            <InputText id="password"
-                       class="form-input"
-                       type="password"
-                       @bind-Value="Input.Password"
-                       autocomplete="current-password"
-                       aria-required="true" />
+            <div class="input-shell">
+                <span class="input-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                        <rect x="5" y="10" width="14" height="11" rx="2" />
+                        <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+                    </svg>
+                </span>
+                <InputText id="password"
+                           class="form-input"
+                           type="password"
+                           @bind-Value="Input.Password"
+                           autocomplete="current-password"
+                           aria-required="true"
+                           placeholder="رمز عبور حساب سازمانی" />
+            </div>
             <ValidationMessage For="() => Input.Password" class="field-error" />
         </div>
 

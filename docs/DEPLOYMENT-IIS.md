@@ -42,6 +42,48 @@ Migration در Startup اجرا نمی‌شود. حساب Deployment ابتدا
 هنگام استقرار کنار Artifact قرار دهید. Thumbprintها، FQDN، DCها، Base DN و UPN مدیر اولیه
 باید جایگزین شوند. ACL فایل تنظیمات فقط برای Administrators و هویت App Pool Read باشد.
 
+مسیر پیشنهادی روی سرور `D:\Sites\EmpPortal\current\appsettings.Production.json` است؛ یعنی فایل باید
+دقیقاً کنار `EmpPortal.Web.dll` و `web.config` نسخه منتشرشده قرار گیرد. فایل Development را به سرور
+منتقل یا ویرایش نکنید. نمونه را پیش از اولین اجرای Application Pool کپی کنید:
+
+```powershell
+Copy-Item `
+  -LiteralPath '.\deploy\appsettings.Production.example.json' `
+  -Destination 'D:\Sites\EmpPortal\current\appsettings.Production.json'
+```
+
+در فایل Production این مقادیر حتماً با اطلاعات واقعی سازمان جایگزین شوند:
+
+- `ConnectionStrings:PortalDatabase`: نام SQL Server/Instance و Database عملیاتی؛ در حالت
+  `Trusted_Connection=True` اتصال با هویت gMSA مربوط به App Pool انجام می‌شود.
+- `AllowedHosts`: فقط FQDN نهایی پورتال، بدون `https://` و بدون مسیر.
+- `BootstrapAdministrator:Upn`: UPN واقعی حساب AD مدیر اولیه. هیچ Passwordی در تنظیمات ذخیره
+  نمی‌شود و این کاربر در اولین ورود موفق نقش مدیر می‌گیرد.
+- `ActiveDirectory`: نام DNS دامنه، Base DN و فهرست DCهای دارای LDAPS؛ ترتیب DCها ترتیب Failover است.
+- `DataProtection`: مسیر پایدار Key Ring و Thumbprint گواهی رمزنگاری دارای Private Key در
+  `LocalMachine\My`.
+- `Jwt`: آدرس HTTPS پورتال به‌عنوان Issuer، شناسه API به‌عنوان Audience و Thumbprint گواهی مستقل
+  امضای JWT در `LocalMachine\My`.
+
+در Production کاربر آزمایشی `admin@empportal.test` و پذیرش Password دلخواه اصلاً ثبت نمی‌شوند.
+ورود دستی فقط با UPN و Password واقعی Active Directory و از طریق LDAPS اعتبارسنجی می‌شود.
+
+### تقدم و روش تغییر تنظیمات
+
+در اولین اجرا، جدول Runtime Settings خالی است و مقادیر پایه از `appsettings.Production.json` خوانده
+می‌شوند. پس از ورود مدیر، مقادیر مجاز از مسیر `/admin/settings` قابل تغییرند و در SQL ثبت و Audit
+می‌شوند. مقادیر ذخیره‌شده در SQL در راه‌اندازی بعدی بر فایل JSON تقدم دارند؛ بنابراین پس از اولین
+ذخیره در پنل، تغییر همان کلید در فایل JSON اثری ندارد و باید از خود پنل تغییر داده شود.
+
+تغییرات پنل شامل عنوان پورتال، Domain/Base DN/LDAPS، فعال‌بودن SSO یا ورود دستی، سیاست Session و
+عمر JWT است و پس از ذخیره به Restart کنترل‌شده Application Pool نیاز دارد. Connection String،
+`AllowedHosts`، مدیر Bootstrap، فهرست DCها، مسیر Key Ring و Thumbprint گواهی‌ها فقط در فایل
+Production یا Secret Store مورد تأیید سازمان نگهداری می‌شوند. پس از تغییر فایل یا پنل:
+
+```powershell
+Restart-WebAppPool -Name 'EmpPortal'
+```
+
 برنامه در نبود Connection String، AD، Key Ring یا Certificateهای لازم عمداً Fail-fast
 می‌شود. `TrustServerCertificate=True` در Production مجاز نیست.
 

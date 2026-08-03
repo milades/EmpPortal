@@ -71,26 +71,97 @@
     font-weight: 700;
 }
 
-.form-input {
+.input-shell {
+    align-items: stretch;
+    background: linear-gradient(180deg, #fff 0%, #f8faff 100%);
+    border: 1px solid #d0d7e5;
+    border-radius: 1rem;
+    box-shadow: 0 0.15rem 0.4rem rgba(16, 24, 40, 0.04);
+    display: flex;
+    min-height: 3.55rem;
+    overflow: hidden;
+    transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.input-shell:hover {
+    border-color: #aab8d4;
+}
+
+.input-shell:focus-within {
     background: #fff;
-    border: 1px solid #cfd4dc;
-    border-radius: 0.75rem;
-    font: inherit;
-    min-height: 3rem;
-    padding: 0 0.9rem;
-    width: 100%;
-}
-
-.form-input:focus {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 0.2rem rgba(49, 87, 213, 0.14);
-    outline: none;
+    box-shadow: 0 0 0 0.25rem rgba(49, 87, 213, 0.13),
+        0 0.6rem 1.4rem rgba(49, 87, 213, 0.09);
+    transform: translateY(-1px);
 }
 
-.field-error,
-.validation-summary {
+.input-icon {
+    align-items: center;
+    background: rgba(49, 87, 213, 0.055);
+    border-left: 1px solid rgba(49, 87, 213, 0.1);
+    color: #6578a6;
+    display: flex;
+    flex: 0 0 3.4rem;
+    justify-content: center;
+    transition: background-color 160ms ease, color 160ms ease;
+}
+
+.input-shell:focus-within .input-icon {
+    background: rgba(49, 87, 213, 0.1);
+    color: var(--primary-color);
+}
+
+.input-icon svg {
+    fill: none;
+    height: 1.35rem;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+    width: 1.35rem;
+}
+
+.input-shell ::deep .form-input {
+    background: transparent;
+    border: 0;
+    color: var(--text-color);
+    flex: 1 1 auto;
+    font: inherit;
+    font-weight: 600;
+    min-width: 0;
+    outline: 0;
+    padding: 0.85rem 1rem;
+}
+
+.input-shell ::deep .form-input::placeholder {
+    color: #98a2b3;
+    font-weight: 400;
+    opacity: 1;
+}
+
+.input-shell ::deep .form-input.invalid {
+    box-shadow: inset 0 -2px 0 #d92d20;
+}
+
+.input-shell ::deep .form-input:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0 1000px #fff inset;
+    -webkit-text-fill-color: var(--text-color);
+}
+
+.field-hint {
+    color: var(--muted-color);
+    font-size: 0.78rem;
+    line-height: 1.6;
+}
+
+.field-group ::deep .field-error,
+::deep .validation-summary {
     color: #b42318;
     font-size: 0.9rem;
+}
+
+.field-group ::deep .field-error {
+    font-weight: 600;
 }
 
 .form-alert {
@@ -100,4 +171,11 @@
     color: #b42318;
     line-height: 1.8;
     padding: 0.75rem 1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .input-shell,
+    .input-icon {
+        transition: none;
+    }
 }
