@@ -1,0 +1,87 @@
+.settings-page {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.page-heading h1 {
+    margin: 0.4rem 0;
+}
+
+.page-heading p,
+.setting-card p {
+    color: var(--muted-color);
+    line-height: 1.8;
+}
+
+.settings-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+}
+
+.setting-card {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 1rem;
+    display: grid;
+    gap: 0.65rem;
+    padding: 1.25rem;
+}
+
+.setting-card label {
+    font-weight: 800;
+}
+
+.setting-card p {
+    margin: 0;
+}
+
+.setting-card code {
+    color: var(--muted-color);
+    font-size: 0.75rem;
+}
+
+.setting-input {
+    border: 1px solid var(--border-color);
+    border-radius: 0.7rem;
+    font: inherit;
+    padding: 0.75rem;
+    width: 100%;
+}
+
+.settings-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+}
+
+.primary-button {
+    background: var(--primary-color);
+    border: 0;
+    border-radius: 0.75rem;
+    color: white;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 800;
+    padding: 0.8rem 1.3rem;
+}
+
+.primary-button:disabled {
+    cursor: wait;
+    opacity: 0.65;
+}
+
+.settings-message {
+    border-radius: 0.75rem;
+    padding: 0.9rem 1rem;
+}
+
+.settings-message.success {
+    background: #ecfdf3;
+    color: #067647;
+}
+
+.settings-message.error {
+    background: #fef3f2;
+    color: #b42318;
+}

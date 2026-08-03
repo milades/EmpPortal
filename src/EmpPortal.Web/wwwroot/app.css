@@ -1,0 +1,120 @@
+@font-face {
+    font-display: swap;
+    font-family: "Vazirmatn";
+    font-style: normal;
+    font-weight: 400;
+    src: url("fonts/Vazirmatn-Regular.ttf") format("truetype");
+}
+
+@font-face {
+    font-display: swap;
+    font-family: "Vazirmatn";
+    font-style: normal;
+    font-weight: 700;
+    src: url("fonts/Vazirmatn-Bold.ttf") format("truetype");
+}
+
+:root {
+    --background-color: #f5f7fb;
+    --surface-color: #ffffff;
+    --text-color: #172033;
+    --muted-color: #667085;
+    --border-color: #e4e7ec;
+    --primary-color: #3157d5;
+    color-scheme: light;
+    --bs-body-font-family: "Vazirmatn", Tahoma, "Segoe UI", sans-serif;
+    font-family: var(--bs-body-font-family);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    background: var(--background-color);
+    min-height: 100%;
+}
+
+body {
+    background: var(--background-color);
+    color: var(--text-color);
+    margin: 0;
+    min-height: 100vh;
+    text-rendering: optimizeLegibility;
+}
+
+h1:focus {
+    outline: none;
+}
+
+.valid.modified:not([type=checkbox]) {
+    outline: 1px solid #26b050;
+}
+
+.invalid {
+    outline: 1px solid #e50000;
+}
+
+.validation-message {
+    color: #b42318;
+}
+
+.blazor-error-boundary {
+    background: #b42318;
+    border-radius: 0.75rem;
+    color: white;
+    padding: 1rem;
+}
+
+.blazor-error-boundary::after {
+    content: "خطایی در اجرای برنامه رخ داده است.";
+}
+
+.welcome {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 1.5rem;
+    box-shadow: 0 1.25rem 3rem rgba(16, 24, 40, 0.08);
+    max-width: 50rem;
+    padding: clamp(2rem, 5vw, 4rem);
+}
+
+.welcome h1 {
+    font-size: clamp(2rem, 5vw, 3.75rem);
+    letter-spacing: -0.04em;
+    margin: 0.5rem 0 1rem;
+}
+
+.welcome p {
+    color: var(--muted-color);
+    font-size: 1.05rem;
+    line-height: 2;
+    margin: 0;
+}
+
+.eyebrow {
+    color: var(--primary-color);
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.status-card {
+    align-items: center;
+    background: #f0f4ff;
+    border-radius: 1rem;
+    color: #2949b6;
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 2rem;
+    padding: 1rem 1.25rem;
+}
+
+.status-dot {
+    background: #3157d5;
+    border-radius: 50%;
+    box-shadow: 0 0 0 0.3rem rgba(49, 87, 213, 0.15);
+    height: 0.65rem;
+    width: 0.65rem;
+}

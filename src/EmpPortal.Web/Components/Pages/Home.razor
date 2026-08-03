@@ -1,0 +1,23 @@
+@page "/"
+@attribute [Authorize]
+
+@using Microsoft.AspNetCore.Authorization
+@inject IConfiguration Configuration
+
+<PageTitle>داشبورد | @PortalTitle</PageTitle>
+
+<section class="welcome shadow-sm" aria-labelledby="welcome-title">
+    <span class="eyebrow">EmpPortal</span>
+    <h1 id="welcome-title">@PortalTitle</h1>
+    <p>
+        خوش آمدید. هویت سازمانی شما تأیید شده و نشست امن پرتال فعال است.
+    </p>
+    <div class="status-card" role="status">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span>ارتباط امن با سرویس‌های پرتال برقرار است.</span>
+    </div>
+</section>
+
+@code {
+    private string PortalTitle => Configuration["Portal:Title"] ?? "پرتال کارمندی";
+}

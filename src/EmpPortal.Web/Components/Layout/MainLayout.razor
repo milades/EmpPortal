@@ -1,0 +1,35 @@
+@inherits LayoutComponentBase
+@using EmpPortal.Application.Authorization
+@inject IConfiguration Configuration
+
+<header class="site-header container-fluid">
+    <a class="brand" href="/" aria-label="صفحه اصلی @PortalTitle">
+        <span class="brand-mark" aria-hidden="true">اِ</span>
+        <span>@PortalTitle</span>
+    </a>
+    <AuthorizeView>
+        <Authorized Context="authenticationState">
+            <nav class="user-navigation" aria-label="منوی کاربری">
+                <span class="user-name">@authenticationState.User.Identity?.Name</span>
+                <AuthorizeView Roles="@PortalRoles.SystemAdministrator">
+                    <a href="/admin/settings">تنظیمات</a>
+                </AuthorizeView>
+                <a href="/account/logout" data-enhance-nav="false">خروج</a>
+            </nav>
+        </Authorized>
+    </AuthorizeView>
+</header>
+
+<main class="page-shell min-h-screen antialiased">
+    @Body
+</main>
+
+<div id="blazor-error-ui" data-nosnippet>
+    خطایی در اجرای برنامه رخ داده است.
+    <a href="." class="reload">بارگذاری مجدد</a>
+    <span class="dismiss">×</span>
+</div>
+
+@code {
+    private string PortalTitle => Configuration["Portal:Title"] ?? "پرتال کارمندی";
+}

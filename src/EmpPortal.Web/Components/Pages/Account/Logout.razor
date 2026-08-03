@@ -1,0 +1,54 @@
+@page "/account/logout"
+@attribute [Authorize]
+@attribute [ExcludeFromInteractiveRouting]
+
+@using EmpPortal.Application.Identity
+@using EmpPortal.Web.Components.Account
+@using Microsoft.AspNetCore.Authorization
+
+@inject IPortalSignOutService PortalSignOutService
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>خروج | پرتال کارمندی</PageTitle>
+
+<section class="welcome" aria-labelledby="logout-title">
+    <span class="eyebrow">خروج امن</span>
+    <h1 id="logout-title">خروج از حساب کاربری</h1>
+    <p>با خروج از پرتال، حساب Windows شما بدون تغییر باقی می‌ماند.</p>
+
+    <EditForm Model="Input"
+              method="post"
+              OnValidSubmit="SignOutAsync"
+              FormName="portal-logout"
+              Enhance="false">
+        <button class="submit-button" type="submit">خروج از پرتال</button>
+    </EditForm>
+</section>
+
+@code {
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm(FormName = "portal-logout")]
+    private LogoutInput Input { get; set; } = default!;
+
+    protected override void OnInitialized()
+    {
+        Input ??= new LogoutInput();
+    }
+
+    private async Task SignOutAsync()
+    {
+        string? sessionIdValue = HttpContext.User.FindFirst("sid")?.Value;
+        Guid? sessionId = Guid.TryParse(sessionIdValue, out Guid parsedSessionId)
+            ? parsedSessionId
+            : null;
+
+        await PortalSignOutService.SignOutAsync(sessionId, HttpContext.RequestAborted);
+        RedirectManager.RedirectTo("account/login");
+    }
+
+    private sealed class LogoutInput
+    {
+    }
+}

@@ -1,0 +1,166 @@
+@page "/admin/settings"
+@attribute [Authorize(Roles = PortalRoles.SystemAdministrator)]
+
+@using System.ComponentModel.DataAnnotations
+@using System.Security.Claims
+@using EmpPortal.Application.Authorization
+@using EmpPortal.Application.Configuration
+@using Microsoft.AspNetCore.Authorization
+
+@inject IRuntimeSettingsService RuntimeSettingsService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>تنظیمات سامانه | پرتال کارمندی</PageTitle>
+
+<section class="settings-page" aria-labelledby="settings-title">
+    <header class="page-heading">
+        <div>
+            <span class="eyebrow">مدیریت سامانه</span>
+            <h1 id="settings-title">تنظیمات عملیاتی</h1>
+            <p>تغییرات ثبت و ممیزی می‌شوند و پس از راه‌اندازی مجدد برنامه اعمال خواهند شد.</p>
+        </div>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(statusMessage))
+    {
+        <div class="settings-message @statusClass" role="status">@statusMessage</div>
+    }
+
+    @if (isLoading)
+    {
+        <p role="status">در حال دریافت تنظیمات…</p>
+    }
+    else
+    {
+        <EditForm Model="Model" OnValidSubmit="SaveAsync" FormName="runtime-settings">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="validation-summary" />
+
+            <div class="settings-grid">
+                @foreach (SettingInput setting in Model.Settings)
+                {
+                    <article class="setting-card">
+                        <label for="@GetInputId(setting.Key)">@setting.DisplayName</label>
+                        <p>@setting.Description</p>
+                        <InputTextOnInput id="@GetInputId(setting.Key)"
+                                          class="setting-input"
+                                          @bind-Value="setting.Value" />
+                        <ValidationMessage For="() => setting.Value" />
+                        <code dir="ltr">@setting.Key</code>
+                    </article>
+                }
+            </div>
+
+            <div class="settings-actions">
+                <button class="primary-button" type="submit" disabled="@isSaving">
+                    @(isSaving ? "در حال ذخیره…" : "ذخیره تغییرات")
+                </button>
+            </div>
+        </EditForm>
+    }
+</section>
+
+@code {
+    private readonly Dictionary<string, string> originalValues =
+        new(StringComparer.OrdinalIgnoreCase);
+    private SettingsInputModel Model { get; } = new();
+    private bool isLoading = true;
+    private bool isSaving;
+    private string? statusMessage;
+    private string statusClass = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        IReadOnlyList<RuntimeSettingItem> settings = await RuntimeSettingsService.GetAllAsync();
+        foreach (RuntimeSettingItem setting in settings)
+        {
+            Model.Settings.Add(new SettingInput
+            {
+                Key = setting.Key,
+                Value = setting.Value,
+                DisplayName = setting.DisplayName,
+                Description = setting.Description
+            });
+            originalValues[setting.Key] = setting.Value;
+        }
+
+        isLoading = false;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (isSaving)
+        {
+            return;
+        }
+
+        isSaving = true;
+        statusMessage = null;
+
+        try
+        {
+            AuthenticationState authenticationState =
+                await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            string? userIdValue = authenticationState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            string actorUpn = authenticationState.User.Identity?.Name ?? string.Empty;
+            if (!Guid.TryParse(userIdValue, out Guid actorUserId))
+            {
+                statusClass = "error";
+                statusMessage = "هویت مدیر معتبر نیست. دوباره وارد سامانه شوید.";
+                return;
+            }
+
+            SettingInput[] changedSettings = Model.Settings
+                .Where(setting => !originalValues.TryGetValue(setting.Key, out string? original) ||
+                    !string.Equals(original, setting.Value, StringComparison.Ordinal))
+                .ToArray();
+
+            foreach (SettingInput setting in changedSettings)
+            {
+                await RuntimeSettingsService.UpdateAsync(
+                    setting.Key,
+                    setting.Value,
+                    actorUserId,
+                    actorUpn,
+                    Guid.NewGuid().ToString("D"),
+                    ipAddress: null);
+                originalValues[setting.Key] = setting.Value;
+            }
+
+            statusClass = "success";
+            statusMessage = changedSettings.Length == 0
+                ? "تغییری برای ذخیره وجود نداشت."
+                : "تنظیمات ذخیره شد؛ برای اعمال، برنامه باید راه‌اندازی مجدد شود.";
+        }
+        catch (ArgumentException)
+        {
+            statusClass = "error";
+            statusMessage = "یکی از مقادیر واردشده معتبر نیست.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private static string GetInputId(string key) =>
+        $"setting-{key.Replace(':', '-').ToLowerInvariant()}";
+
+    private sealed class SettingsInputModel
+    {
+        public List<SettingInput> Settings { get; } = [];
+    }
+
+    private sealed class SettingInput
+    {
+        public string Key { get; init; } = string.Empty;
+
+        [Required(ErrorMessage = "مقدار تنظیم الزامی است.")]
+        [StringLength(2000, ErrorMessage = "مقدار تنظیم بیش از حد طولانی است.")]
+        public string Value { get; set; } = string.Empty;
+
+        public string DisplayName { get; init; } = string.Empty;
+
+        public string Description { get; init; } = string.Empty;
+    }
+}

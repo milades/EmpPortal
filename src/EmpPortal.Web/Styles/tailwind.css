@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+@source "../Components/**/*.razor";
+
+/*
+ * Tailwind is intentionally restricted to utility classes. Bootstrap RTL owns
+ * the grid and form primitives; component-scoped CSS owns portal-specific UI.
+ */

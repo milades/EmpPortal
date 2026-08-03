@@ -1,0 +1,152 @@
+@page "/account/login"
+@attribute [ExcludeFromInteractiveRouting]
+
+@using System.ComponentModel.DataAnnotations
+@using EmpPortal.Application.Identity
+@using EmpPortal.Web.Components.Account
+@using EmpPortal.Web.Security
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Identity
+
+@inject IPortalSignInService PortalSignInService
+@inject IdentityRedirectManager RedirectManager
+@inject ILogger<Login> Logger
+@inject PortalAuthenticationOptions AuthenticationOptions
+@inject IConfiguration Configuration
+
+<PageTitle>ورود | @PortalTitle</PageTitle>
+
+<section class="login-shell" aria-labelledby="login-title">
+    <header class="login-heading">
+        <span class="eyebrow">ورود امن</span>
+        <h1 id="login-title">ورود به @PortalTitle</h1>
+        <p>روش ورود موردنظر خود را انتخاب کنید.</p>
+    </header>
+
+    @if (AuthenticationOptions.SsoEnabled)
+    {
+        <a class="sso-link" href="/auth/sso" data-enhance-nav="false">
+            ورود با حساب ویندوز
+        </a>
+    }
+
+    @if (AuthenticationOptions.SsoEnabled && AuthenticationOptions.ManualLoginEnabled)
+    {
+        <div class="divider" aria-hidden="true"><span>یا</span></div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="form-alert" role="alert">@errorMessage</div>
+    }
+
+    @if (AuthenticationOptions.ManualLoginEnabled)
+    {
+        <EditForm Model="Input"
+                  method="post"
+                  OnValidSubmit="ManualLoginAsync"
+                  FormName="manual-login"
+                  Enhance="false">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="validation-summary" role="alert" />
+
+        <div class="field-group">
+            <label for="upn">نام کاربری سازمانی</label>
+            <InputText id="upn"
+                       class="form-input"
+                       @bind-Value="Input.Upn"
+                       autocomplete="username"
+                       inputmode="email"
+                       aria-required="true"
+                       placeholder="user@company.local" />
+            <ValidationMessage For="() => Input.Upn" class="field-error" />
+        </div>
+
+        <div class="field-group">
+            <label for="password">رمز عبور</label>
+            <InputText id="password"
+                       class="form-input"
+                       type="password"
+                       @bind-Value="Input.Password"
+                       autocomplete="current-password"
+                       aria-required="true" />
+            <ValidationMessage For="() => Input.Password" class="field-error" />
+        </div>
+
+        <button class="submit-button" type="submit">ورود دستی</button>
+        </EditForm>
+    }
+</section>
+
+@code {
+    private string? errorMessage;
+    private string PortalTitle => Configuration["Portal:Title"] ?? "پرتال کارمندی";
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm(FormName = "manual-login")]
+    private LoginInput Input { get; set; } = default!;
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    [SupplyParameterFromQuery]
+    private bool SsoError { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Input ??= new LoginInput();
+
+        if (SsoError)
+        {
+            errorMessage = "ورود یکپارچه انجام نشد. حساب ویندوز یا دسترسی سازمانی را بررسی کنید.";
+        }
+
+        if (HttpMethods.IsGet(HttpContext.Request.Method))
+        {
+            await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+        }
+    }
+
+    private async Task ManualLoginAsync()
+    {
+        if (!AuthenticationOptions.ManualLoginEnabled)
+        {
+            errorMessage = "ورود دستی در تنظیمات سامانه غیرفعال است.";
+            return;
+        }
+
+        PortalSignInResult result = await PortalSignInService.PasswordSignInAsync(
+            Input.Upn,
+            Input.Password,
+            HttpContext.RequestAborted);
+
+        if (result.Succeeded)
+        {
+            Logger.LogInformation("A user signed in with Active Directory password verification.");
+            RedirectManager.RedirectTo(ReturnUrl);
+            return;
+        }
+
+        errorMessage = result.Status switch
+        {
+            PortalSignInStatus.DirectoryUnavailable =>
+                "سرویس احراز هویت سازمانی موقتاً در دسترس نیست. دوباره تلاش کنید.",
+            PortalSignInStatus.IdentityStoreFailure =>
+                "ورود انجام نشد. لطفاً با پشتیبانی سامانه تماس بگیرید.",
+            _ => "نام کاربری یا رمز عبور معتبر نیست، یا حساب اجازه ورود ندارد."
+        };
+    }
+
+    private sealed class LoginInput
+    {
+        [Required(ErrorMessage = "نام کاربری سازمانی الزامی است.")]
+        [RegularExpression(@"^[^@\s]+@[^@\s]+$", ErrorMessage = "نام کاربری باید با قالب UPN وارد شود.")]
+        public string Upn { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "رمز عبور الزامی است.")]
+        [DataType(DataType.Password)]
+        public string Password { get; set; } = string.Empty;
+    }
+}

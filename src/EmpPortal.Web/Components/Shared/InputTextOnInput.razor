@@ -1,0 +1,25 @@
+@inherits InputBase<string?>
+@using System.Diagnostics.CodeAnalysis
+
+<input @attributes="AdditionalAttributes"
+       class="@CssClass"
+       value="@CurrentValueAsString"
+       @oninput="HandleInput" />
+
+@code {
+    private void HandleInput(ChangeEventArgs eventArgs)
+    {
+        CurrentValueAsString = eventArgs.Value?.ToString();
+    }
+
+    protected override bool TryParseValueFromString(
+        string? value,
+        out string? result,
+        [NotNullWhen(false)]
+        out string? validationErrorMessage)
+    {
+        result = value;
+        validationErrorMessage = null;
+        return true;
+    }
+}

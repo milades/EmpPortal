@@ -1,0 +1,103 @@
+.login-shell {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 1.5rem;
+    box-shadow: 0 1.25rem 3rem rgba(16, 24, 40, 0.08);
+    margin: 0 auto;
+    max-width: 31rem;
+    padding: clamp(1.5rem, 5vw, 3rem);
+}
+
+.login-heading h1 {
+    font-size: clamp(1.75rem, 5vw, 2.4rem);
+    margin: 0.5rem 0 0.75rem;
+}
+
+.login-heading p {
+    color: var(--muted-color);
+    line-height: 1.8;
+    margin: 0 0 1.75rem;
+}
+
+.sso-link,
+.submit-button {
+    align-items: center;
+    border: 0;
+    border-radius: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    font: inherit;
+    font-weight: 800;
+    justify-content: center;
+    min-height: 3rem;
+    text-decoration: none;
+    width: 100%;
+}
+
+.sso-link {
+    background: #172033;
+    color: #fff;
+}
+
+.submit-button {
+    background: var(--primary-color);
+    color: #fff;
+    margin-top: 1.5rem;
+}
+
+.divider {
+    align-items: center;
+    color: var(--muted-color);
+    display: flex;
+    gap: 1rem;
+    margin: 1.5rem 0;
+}
+
+.divider::before,
+.divider::after {
+    background: var(--border-color);
+    content: "";
+    flex: 1;
+    height: 1px;
+}
+
+.field-group {
+    display: grid;
+    gap: 0.45rem;
+    margin-top: 1rem;
+}
+
+.field-group label {
+    font-weight: 700;
+}
+
+.form-input {
+    background: #fff;
+    border: 1px solid #cfd4dc;
+    border-radius: 0.75rem;
+    font: inherit;
+    min-height: 3rem;
+    padding: 0 0.9rem;
+    width: 100%;
+}
+
+.form-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(49, 87, 213, 0.14);
+    outline: none;
+}
+
+.field-error,
+.validation-summary {
+    color: #b42318;
+    font-size: 0.9rem;
+}
+
+.form-alert {
+    background: #fef3f2;
+    border: 1px solid #fecdca;
+    border-radius: 0.75rem;
+    color: #b42318;
+    line-height: 1.8;
+    padding: 0.75rem 1rem;
+}

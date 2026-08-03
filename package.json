@@ -1,0 +1,17 @@
+{
+  "name": "empportal-ui",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.15.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "css:build": "tailwindcss -i ./src/EmpPortal.Web/Styles/tailwind.css -o ./src/EmpPortal.Web/wwwroot/css/tailwind.css --minify",
+    "css:watch": "tailwindcss -i ./src/EmpPortal.Web/Styles/tailwind.css -o ./src/EmpPortal.Web/wwwroot/css/tailwind.css --watch"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "4.3.0",
+    "tailwindcss": "4.3.0"
+  }
+}

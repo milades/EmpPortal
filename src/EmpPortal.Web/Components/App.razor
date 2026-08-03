@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#ffffff" />
+    <base href="/" />
+    <ResourcePreloader />
+    <link rel="stylesheet" href="@Assets["vendor/bootstrap/css/bootstrap.rtl.min.css"]" />
+    <link rel="stylesheet" href="@Assets["css/tailwind.css"]" />
+    <link rel="stylesheet" href="@Assets["app.css"]" />
+    <link rel="stylesheet" href="@Assets["EmpPortal.Web.styles.css"]" />
+    <ImportMap />
+    <HeadOutlet @rendermode="@PageRenderMode" />
+</head>
+
+<body>
+    <Routes @rendermode="@PageRenderMode" />
+    <ReconnectModal />
+    <script src="@Assets["vendor/bootstrap/js/bootstrap.bundle.min.js"]"></script>
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
+</body>
+
+</html>
+
+@code {
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    private IComponentRenderMode? PageRenderMode =>
+        HttpContext.AcceptsInteractiveRouting() ? InteractiveServer : null;
+}
