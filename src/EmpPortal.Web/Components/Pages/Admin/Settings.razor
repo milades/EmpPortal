@@ -52,6 +52,8 @@
                             <InputTextOnInput id="@GetInputId(setting.Key)"
                                               class="setting-input"
                                               dir="auto"
+                                              required
+                                              maxlength="2000"
                                               @bind-Value="setting.Value" />
                         </div>
                         <ValidationMessage For="() => setting.Value" />
@@ -61,9 +63,10 @@
             </div>
 
             <div class="settings-actions">
-                <button class="primary-button" type="submit" disabled="@isSaving">
-                    @(isSaving ? "در حال ذخیره…" : "ذخیره تغییرات")
-                </button>
+                <LoadingSubmitButton CssClass="primary-button"
+                                     Disabled="@(isSaving || !AreSettingsValid)"
+                                     IsLoading="@isSaving"
+                                     LoadingText="در حال ذخیره تنظیمات…">ذخیره تغییرات</LoadingSubmitButton>
             </div>
         </EditForm>
     }
@@ -77,6 +80,8 @@
     private bool isSaving;
     private string? statusMessage;
     private string statusClass = string.Empty;
+    private bool AreSettingsValid => Model.Settings.All(setting =>
+        !string.IsNullOrWhiteSpace(setting.Value) && setting.Value.Length <= 2000);
 
     protected override async Task OnInitializedAsync()
     {
@@ -98,8 +103,10 @@
 
     private async Task SaveAsync()
     {
-        if (isSaving)
+        if (isSaving || !AreSettingsValid)
         {
+            statusClass = "error";
+            statusMessage = "برای ذخیره، همه مقادیر تنظیمات باید معتبر باشند.";
             return;
         }
 

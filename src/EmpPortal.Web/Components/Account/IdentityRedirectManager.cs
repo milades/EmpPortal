@@ -6,13 +6,27 @@ internal sealed class IdentityRedirectManager(NavigationManager navigationManage
 {
     public void RedirectTo(string? uri)
     {
-        uri ??= string.Empty;
+        string target = string.IsNullOrWhiteSpace(uri) ? "/" : uri.Trim();
 
-        if (!Uri.IsWellFormedUriString(uri, UriKind.Relative))
+        if (Uri.TryCreate(target, UriKind.Absolute, out Uri? absoluteTarget))
         {
-            uri = navigationManager.ToBaseRelativePath(uri);
+            Uri baseUri = new(navigationManager.BaseUri);
+            target = string.Equals(absoluteTarget.Scheme, baseUri.Scheme, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(absoluteTarget.Authority, baseUri.Authority, StringComparison.OrdinalIgnoreCase)
+                ? "/" + navigationManager.ToBaseRelativePath(absoluteTarget.ToString()).TrimStart('/')
+                : "/";
+        }
+        else if (target.StartsWith("//", StringComparison.Ordinal))
+        {
+            target = "/";
+        }
+        else if (!target.StartsWith('/'))
+        {
+            target = "/" + target;
         }
 
-        navigationManager.NavigateTo(uri);
+        target = target.Length == 0 ? "/" : target;
+
+        navigationManager.NavigateTo(target);
     }
 }

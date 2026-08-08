@@ -1,0 +1,38 @@
+@switch (ServiceKey)
+{
+    case "personnel":
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-7 9a7 7 0 0 1 14 0" /></svg>
+        break;
+    case "security":
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v6c0 5 3.2 8.4 7 9 3.8-.6 7-4 7-9V6l-7-3Z" /><path d="m9.5 12 1.8 1.8L15 10" /></svg>
+        break;
+    case "food":
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11h16v2a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6v-2Z" /><path d="M8 11V5M12 11V3M16 11V6" /></svg>
+        break;
+    case "assets":
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5 12 4l8 4.5v7L12 20l-8-4.5v-7Z" /><path d="M12 12v8M4 8.5l8 3.5 8-3.5" /></svg>
+        break;
+    case "benefits":
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M7 7.5c0-1.5 1.8-2.5 5-2.5s5 1 5 2.5-1.8 2.5-5 2.5-5 1-5 2.5 1.8 2.5 5 2.5 5-1 5-2.5" /></svg>
+        break;
+    case "payslip":
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10a2 2 0 0 1 2 2v14l-3-2-3 2-3-2-3 2V5a2 2 0 0 1 2-2Z" /><path d="M9 8h6M9 12h6" /></svg>
+        break;
+    case "payslip-settings":
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" /><path d="M4 12h2M18 12h2M12 4v2M12 18v2" /></svg>
+        break;
+    case "charity":
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 11c0 5.6-7 10-7 10Z" /></svg>
+        break;
+    case "events":
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z" /></svg>
+        break;
+    default:
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M4 12h16" /></svg>
+        break;
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public string ServiceKey { get; set; } = string.Empty;
+}

@@ -143,6 +143,14 @@ Pipeline باید علاوه بر موارد بالا این کنترل‌ها �
 - `AuthorizeView` فقط نمایش UI را کنترل می‌کند؛ مجوز واقعی در Endpoint/Application
   Policy نیز اعمال می‌شود.
 
+### قرارداد فرم‌ساز فاز ۲
+
+- طراح و فرم Runtime به دلیل Drag & Drop، binding پویا و eventهای C# با Interactive Server اجرا می‌شوند.
+- schema و پاسخ از Component به Application Service تحویل می‌شوند و در مرز سرور دوباره validate می‌شوند.
+- نسخه منتشرشده immutable است؛ هر تغییر روی Draft بعدی انجام می‌شود و Submission به نسخه دقیق متصل است.
+- HTML/JavaScript دلخواه، `MarkupString` برای محتوای مدیر و `eval` در شرط/محاسبه مجاز نیست.
+- Workflow تأیید، فایل/امضا و نمودار تا فاز مربوط نباید به schema فاز ۲ به‌صورت ad-hoc افزوده شوند.
+
 ## Workflow Release آفلاین
 
 1. CI یک Artifact غیرقابل‌تغییر و نسخه‌دار می‌سازد.

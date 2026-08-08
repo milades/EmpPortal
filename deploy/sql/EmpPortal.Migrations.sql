@@ -387,3 +387,326 @@ END;
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    IF SCHEMA_ID(N'forms') IS NULL EXEC(N'CREATE SCHEMA [forms];');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    CREATE TABLE [forms].[FormAccessRules] (
+        [Id] uniqueidentifier NOT NULL,
+        [FormId] uniqueidentifier NOT NULL,
+        [SubjectType] int NOT NULL,
+        [SubjectKey] nvarchar(320) NOT NULL,
+        [Rights] int NOT NULL,
+        [CreatedByUserId] uniqueidentifier NOT NULL,
+        [CreatedAtUtc] datetimeoffset NOT NULL,
+        CONSTRAINT [PK_FormAccessRules] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_FormAccessRules_Users_CreatedByUserId] FOREIGN KEY ([CreatedByUserId]) REFERENCES [identity].[Users] ([Id]) ON DELETE NO ACTION
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    CREATE TABLE [forms].[FormAnswerIndexes] (
+        [Id] uniqueidentifier NOT NULL,
+        [SubmissionId] uniqueidentifier NOT NULL,
+        [FieldId] uniqueidentifier NOT NULL,
+        [FieldName] nvarchar(100) NOT NULL,
+        [FieldType] nvarchar(40) NOT NULL,
+        [Sequence] int NOT NULL,
+        [StringValue] nvarchar(700) NULL,
+        [DecimalValue] decimal(38,10) NULL,
+        [DateTimeValue] datetimeoffset NULL,
+        [BooleanValue] bit NULL,
+        CONSTRAINT [PK_FormAnswerIndexes] PRIMARY KEY ([Id])
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    CREATE TABLE [forms].[Forms] (
+        [Id] uniqueidentifier NOT NULL,
+        [Slug] nvarchar(120) NOT NULL,
+        [Title] nvarchar(200) NOT NULL,
+        [Description] nvarchar(2000) NULL,
+        [Status] int NOT NULL,
+        [CurrentPublishedVersionId] uniqueidentifier NULL,
+        [OpensAtUtc] datetimeoffset NULL,
+        [ClosesAtUtc] datetimeoffset NULL,
+        [AllowDrafts] bit NOT NULL,
+        [AllowEditAfterSubmit] bit NOT NULL,
+        [MaxSubmissionsPerUser] int NULL,
+        [CreatedByUserId] uniqueidentifier NOT NULL,
+        [CreatedAtUtc] datetimeoffset NOT NULL,
+        [UpdatedByUserId] uniqueidentifier NOT NULL,
+        [UpdatedAtUtc] datetimeoffset NOT NULL,
+        [RowVersion] rowversion NOT NULL,
+        CONSTRAINT [PK_Forms] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_Forms_Users_CreatedByUserId] FOREIGN KEY ([CreatedByUserId]) REFERENCES [identity].[Users] ([Id]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_Forms_Users_UpdatedByUserId] FOREIGN KEY ([UpdatedByUserId]) REFERENCES [identity].[Users] ([Id]) ON DELETE NO ACTION
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    CREATE TABLE [forms].[FormVersions] (
+        [Id] uniqueidentifier NOT NULL,
+        [FormId] uniqueidentifier NOT NULL,
+        [VersionNumber] int NOT NULL,
+        [Status] int NOT NULL,
+        [DefinitionJson] nvarchar(max) NOT NULL,
+        [SchemaHash] char(64) NOT NULL,
+        [CreatedByUserId] uniqueidentifier NOT NULL,
+        [CreatedAtUtc] datetimeoffset NOT NULL,
+        [UpdatedByUserId] uniqueidentifier NOT NULL,
+        [UpdatedAtUtc] datetimeoffset NOT NULL,
+        [PublishedAtUtc] datetimeoffset NULL,
+        [RowVersion] rowversion NOT NULL,
+        CONSTRAINT [PK_FormVersions] PRIMARY KEY ([Id]),
+        CONSTRAINT [CK_FormVersions_DefinitionJson_IsJson] CHECK (ISJSON([DefinitionJson]) = 1),
+        CONSTRAINT [FK_FormVersions_Forms_FormId] FOREIGN KEY ([FormId]) REFERENCES [forms].[Forms] ([Id]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_FormVersions_Users_CreatedByUserId] FOREIGN KEY ([CreatedByUserId]) REFERENCES [identity].[Users] ([Id]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_FormVersions_Users_UpdatedByUserId] FOREIGN KEY ([UpdatedByUserId]) REFERENCES [identity].[Users] ([Id]) ON DELETE NO ACTION
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    CREATE TABLE [forms].[FormSubmissions] (
+        [Id] uniqueidentifier NOT NULL,
+        [FormId] uniqueidentifier NOT NULL,
+        [FormVersionId] uniqueidentifier NOT NULL,
+        [SubmittedByUserId] uniqueidentifier NOT NULL,
+        [Status] int NOT NULL,
+        [DataJson] nvarchar(max) NOT NULL,
+        [TrackingCode] nvarchar(40) NOT NULL,
+        [CreatedAtUtc] datetimeoffset NOT NULL,
+        [UpdatedAtUtc] datetimeoffset NOT NULL,
+        [SubmittedAtUtc] datetimeoffset NULL,
+        [WithdrawnAtUtc] datetimeoffset NULL,
+        [RowVersion] rowversion NOT NULL,
+        CONSTRAINT [PK_FormSubmissions] PRIMARY KEY ([Id]),
+        CONSTRAINT [CK_FormSubmissions_DataJson_IsJson] CHECK (ISJSON([DataJson]) = 1),
+        CONSTRAINT [FK_FormSubmissions_FormVersions_FormVersionId] FOREIGN KEY ([FormVersionId]) REFERENCES [forms].[FormVersions] ([Id]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_FormSubmissions_Forms_FormId] FOREIGN KEY ([FormId]) REFERENCES [forms].[Forms] ([Id]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_FormSubmissions_Users_SubmittedByUserId] FOREIGN KEY ([SubmittedByUserId]) REFERENCES [identity].[Users] ([Id]) ON DELETE NO ACTION
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    CREATE INDEX [IX_FormAccessRules_CreatedByUserId] ON [forms].[FormAccessRules] ([CreatedByUserId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_FormAccessRules_FormId_SubjectType_SubjectKey] ON [forms].[FormAccessRules] ([FormId], [SubjectType], [SubjectKey]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    CREATE INDEX [IX_FormAnswerIndexes_FieldId_DateTimeValue] ON [forms].[FormAnswerIndexes] ([FieldId], [DateTimeValue]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    CREATE INDEX [IX_FormAnswerIndexes_FieldId_DecimalValue] ON [forms].[FormAnswerIndexes] ([FieldId], [DecimalValue]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    CREATE INDEX [IX_FormAnswerIndexes_FieldId_StringValue] ON [forms].[FormAnswerIndexes] ([FieldId], [StringValue]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_FormAnswerIndexes_SubmissionId_FieldId_Sequence] ON [forms].[FormAnswerIndexes] ([SubmissionId], [FieldId], [Sequence]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    CREATE INDEX [IX_Forms_CreatedByUserId] ON [forms].[Forms] ([CreatedByUserId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    CREATE INDEX [IX_Forms_CurrentPublishedVersionId] ON [forms].[Forms] ([CurrentPublishedVersionId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_Forms_Slug] ON [forms].[Forms] ([Slug]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    CREATE INDEX [IX_Forms_Status_OpensAtUtc_ClosesAtUtc] ON [forms].[Forms] ([Status], [OpensAtUtc], [ClosesAtUtc]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    CREATE INDEX [IX_Forms_UpdatedByUserId] ON [forms].[Forms] ([UpdatedByUserId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    CREATE INDEX [IX_FormSubmissions_FormId_Status_SubmittedAtUtc] ON [forms].[FormSubmissions] ([FormId], [Status], [SubmittedAtUtc]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    CREATE INDEX [IX_FormSubmissions_FormVersionId] ON [forms].[FormSubmissions] ([FormVersionId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    EXEC(N'CREATE UNIQUE INDEX [IX_FormSubmissions_SubmittedByUserId_FormId] ON [forms].[FormSubmissions] ([SubmittedByUserId], [FormId]) WHERE [Status] = 0');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    CREATE INDEX [IX_FormSubmissions_SubmittedByUserId_FormId_Status] ON [forms].[FormSubmissions] ([SubmittedByUserId], [FormId], [Status]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_FormSubmissions_TrackingCode] ON [forms].[FormSubmissions] ([TrackingCode]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    CREATE INDEX [IX_FormVersions_CreatedByUserId] ON [forms].[FormVersions] ([CreatedByUserId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    CREATE INDEX [IX_FormVersions_FormId_Status] ON [forms].[FormVersions] ([FormId], [Status]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_FormVersions_FormId_VersionNumber] ON [forms].[FormVersions] ([FormId], [VersionNumber]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    CREATE INDEX [IX_FormVersions_UpdatedByUserId] ON [forms].[FormVersions] ([UpdatedByUserId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    ALTER TABLE [forms].[FormAccessRules] ADD CONSTRAINT [FK_FormAccessRules_Forms_FormId] FOREIGN KEY ([FormId]) REFERENCES [forms].[Forms] ([Id]) ON DELETE CASCADE;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    ALTER TABLE [forms].[FormAnswerIndexes] ADD CONSTRAINT [FK_FormAnswerIndexes_FormSubmissions_SubmissionId] FOREIGN KEY ([SubmissionId]) REFERENCES [forms].[FormSubmissions] ([Id]) ON DELETE CASCADE;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    ALTER TABLE [forms].[Forms] ADD CONSTRAINT [FK_Forms_FormVersions_CurrentPublishedVersionId] FOREIGN KEY ([CurrentPublishedVersionId]) REFERENCES [forms].[FormVersions] ([Id]) ON DELETE NO ACTION;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260804090939_AddDynamicFormsPhaseTwo'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260804090939_AddDynamicFormsPhaseTwo', N'10.0.10');
+END;
+
+COMMIT;
+GO
+

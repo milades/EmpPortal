@@ -1,0 +1,65 @@
+@page "/admin/submissions/{SubmissionId:guid}"
+@attribute [Authorize]
+
+@using System.Text.Json
+@using EmpPortal.Application.Forms
+@using EmpPortal.Application.Localization
+@using EmpPortal.Application.Forms.Schema
+@using EmpPortal.Web.Components.Forms
+@using EmpPortal.Web.Security
+@using Microsoft.AspNetCore.Authorization
+
+@inject IFormReportingService FormReportingService
+@inject FormActorFactory ActorFactory
+@inject IJSRuntime JSRuntime
+
+<PageTitle>جزئیات پاسخ فرم | پرتال کارمندی</PageTitle>
+
+<section class="submission-details-page print-document" aria-labelledby="submission-title">
+    @if (isLoading)
+    {
+        <div class="loading-panel" role="status">در حال دریافت پاسخ…</div>
+    }
+    else if (details is null)
+    {
+        <div class="empty-state"><h1>پاسخ یافت نشد</h1><p>پاسخ وجود ندارد یا اجازه مشاهده آن را ندارید.</p></div>
+    }
+    else
+    {
+        <header class="submission-details-header"><div><a class="back-link print-hidden" href="@($"/admin/forms/{formId}/submissions")">← گزارش پاسخ‌ها</a><span class="eyebrow">@details.Schema.Title</span><h1 id="submission-title">جزئیات پاسخ</h1><p><code dir="ltr">@details.TrackingCode</code> · @details.UserDisplayName · @details.UserUpn</p></div><div class="inline-actions print-hidden"><AsyncActionButton CssClass="secondary-button" LoadingText="در حال آماده‌سازی…" OnClick="PrintAsync">چاپ</AsyncActionButton><a class="primary-button" href="@($"/api/submissions/{SubmissionId}/export.pdf")" data-enhance-nav="false">دریافت PDF</a></div></header>
+        <div class="submission-meta"><span><small>وضعیت</small><strong>@FormUiText.Submission(details.Status)</strong></span><span><small>زمان ایجاد</small><strong>@PersianDateTimeFormatter.FormatDateTime(details.CreatedAtUtc)</strong></span><span><small>زمان ثبت نهایی</small><strong>@PersianDateTimeFormatter.FormatDateTime(details.SubmittedAtUtc)</strong></span></div>
+        <div class="dynamic-form-surface read-only-form">
+            @foreach (FormPageDefinition formPage in details.Schema.Pages)
+            {
+                <section class="dynamic-page-section"><header><h2>@formPage.Title</h2><p>@formPage.Description</p></header>
+                    @foreach (FormSectionDefinition formSection in formPage.Sections)
+                    {
+                        <section class="dynamic-section"><h3>@formSection.Title</h3><div class="dynamic-grid">
+                            @foreach (FormElementDefinition field in formSection.Elements)
+                            {
+                                <DynamicFormField Element="field" Values="values" />
+                            }
+                        </div></section>
+                    }
+                </section>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter] public Guid SubmissionId { get; set; }
+    private readonly Dictionary<string,JsonElement> values=new(StringComparer.OrdinalIgnoreCase);
+    private SubmissionDetails? details;
+    private Guid formId;
+    private bool isLoading=true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        isLoading=true;details=await FormReportingService.GetSubmissionAsync(SubmissionId,await ActorFactory.CreateAsync());values.Clear();
+        if(details is not null){formId=details.FormId;foreach((string key,JsonElement value) in details.Values)values[key]=value.Clone();foreach(FormElementDefinition element in FormSubmissionValidator.EnumerateElements(details.Schema))element.ReadOnly=true;}
+        isLoading=false;
+    }
+
+    private async Task PrintAsync()=>await JSRuntime.InvokeVoidAsync("print");
+}

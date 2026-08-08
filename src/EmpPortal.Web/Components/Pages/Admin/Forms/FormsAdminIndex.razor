@@ -1,0 +1,284 @@
+@page "/admin/forms"
+@attribute [Authorize]
+@implements IDisposable
+
+@using System.ComponentModel.DataAnnotations
+@using EmpPortal.Application.Forms
+@using EmpPortal.Application.Localization
+@using EmpPortal.Web.Components.Forms
+@using EmpPortal.Web.Security
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+
+@inject IFormManagementService FormManagementService
+@inject FormActorFactory ActorFactory
+@inject NavigationManager NavigationManager
+@inject EmpPortal.Web.Services.IConfirmationService ConfirmationService
+
+<PageTitle>مدیریت فرم‌ها | پرتال کارمندی</PageTitle>
+
+<section class="forms-admin-page" aria-labelledby="forms-admin-title">
+    <header class="page-heading form-admin-heading">
+        <div><span class="eyebrow">فرم‌ساز داخلی</span><h1 id="forms-admin-title">مدیریت فرم‌ها</h1><p>طراحی، انتشار، زمان‌بندی و گزارش پاسخ‌های ثبت‌نام‌ها و رویدادهای سازمانی.</p></div>
+        <button type="button" class="primary-button" @onclick="() => showCreate = !showCreate">+ فرم جدید</button>
+    </header>
+
+    @if (showCreate)
+    {
+        <EditForm EditContext="createEditContext" OnValidSubmit="CreateAsync" OnInvalidSubmit="InvalidCreate" FormName="create-form" class="create-form-panel">
+            <DataAnnotationsValidator />
+            <header class="create-form-header">
+                <span class="create-form-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+                </span>
+                <div><h2>ایجاد فرم جدید</h2><p>اطلاعات پایه را وارد کنید؛ جزئیات و فیلدها در مرحله طراحی تکمیل می‌شوند.</p></div>
+            </header>
+            <div class="create-form-grid">
+                <label class="create-field" for="form-title">
+                    <span class="create-label"><strong>عنوان فرم</strong><small>الزامی</small></span>
+                    <div class="create-input-shell">
+                        <span class="create-input-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 6h14M5 12h10M5 18h7" /></svg></span>
+                        <InputTextOnInput id="form-title" class="create-input" required maxlength="200" placeholder="مانند درخواست مرخصی" @bind-Value="createModel.Title" />
+                    </div>
+                    <small class="create-field-hint">عنوان فارسی و عمومی.</small>
+                    <ValidationMessage For="() => createModel.Title" />
+                </label>
+                <label class="create-field" for="form-slug">
+                    <span class="create-label"><strong>نشانی لاتین</strong><small>الزامی و یکتا</small></span>
+                    <div class="create-input-shell slug-shell" dir="ltr">
+                        <span class="slug-prefix">/forms/</span>
+                        <InputTextOnInput id="form-slug" dir="ltr" class="create-input" required minlength="2" maxlength="120" pattern="[A-Za-z][A-Za-z0-9-]{1,119}" placeholder="leave-request" autocomplete="off" @bind-Value="createModel.Slug" />
+                    </div>
+                    <small class="create-field-hint">فقط حروف لاتین، عدد و خط تیره؛ با حرف آغاز شود.</small>
+                    <ValidationMessage For="() => createModel.Slug" />
+                </label>
+                <label class="create-field description-field" for="form-description">
+                    <span class="create-label"><strong>توضیح کوتاه</strong><small>اختیاری</small></span>
+                    <div class="create-input-shell">
+                        <span class="create-input-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 5h14v11H9l-4 3V5Zm4 4h6M9 12h4" /></svg></span>
+                        <InputTextOnInput id="form-description" class="create-input" maxlength="1000" placeholder="هدف و کاربرد فرم را کوتاه توضیح دهید" @bind-Value="createModel.Description" />
+                    </div>
+                    <ValidationMessage For="() => createModel.Description" />
+                </label>
+                <label class="create-access-toggle">
+                    <InputCheckbox @bind-Value="createModel.Everyone" />
+                    <span class="toggle-visual" aria-hidden="true"><span></span></span>
+                    <span><strong>در دسترس همه کارکنان</strong><small>بعداً می‌توانید دسترسی را به نقش یا کاربران مشخص محدود کنید.</small></span>
+                </label>
+            </div>
+            <footer class="create-form-actions"><LoadingSubmitButton CssClass="primary-button" Disabled="@(!isCreateValid)" IsLoading="@isCreating" LoadingText="در حال ایجاد فرم…">ایجاد و ورود به طراحی</LoadingSubmitButton><button class="secondary-button" type="button" @onclick="() => showCreate = false">انصراف</button></footer>
+        </EditForm>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <div class="form-notice error" role="alert">@message</div>
+    }
+
+    @if (isLoading)
+    {
+        <div class="loading-panel" role="status">در حال دریافت فرم‌ها…</div>
+    }
+    else if (result is null || result.Items.Count == 0)
+    {
+        <div class="empty-state"><h2>هنوز فرمی ساخته نشده است</h2><p>برای شروع، نخستین فرم سازمانی را ایجاد کنید.</p></div>
+    }
+    else
+    {
+        <div class="admin-form-list">
+            @foreach (FormSummary form in result.Items)
+            {
+                <article class="admin-form-row">
+                    <div class="admin-form-main"><span class="status-badge @form.Status.ToString().ToLowerInvariant()">@FormUiText.Lifecycle(form.Status)</span><div><h2>@form.Title</h2><code dir="ltr">/forms/@form.Slug</code></div></div>
+                    <div class="admin-form-metrics"><span><strong>@form.SubmissionCount</strong><small>پاسخ نهایی</small></span><span><strong>@(form.PublishedVersion?.ToString() ?? "—")</strong><small>نسخه منتشرشده</small></span><span><strong>@form.DraftVersion</strong><small>نسخه طراحی</small></span></div>
+                    <div class="admin-form-actions"><a class="secondary-button small" href="@($"/admin/forms/{form.Id}/builder")">طراحی و تنظیمات</a><a class="secondary-button small" href="@($"/admin/forms/{form.Id}/submissions")">گزارش پاسخ‌ها</a>@if(form.CanPhysicallyDelete){<AsyncActionButton CssClass="danger-button small" Disabled="@deletingFormId.HasValue" LoadingText="در حال حذف…" OnClick="@(() => DeleteAsync(form))">حذف فیزیکی</AsyncActionButton>}</div>
+                </article>
+            }
+        </div>
+        <footer class="forms-pagination">
+            <span>نمایش @FormatNumber(FirstItemNumber) تا @FormatNumber(LastItemNumber) از @FormatNumber(result.TotalCount) فرم</span>
+            <nav aria-label="صفحه‌بندی فهرست فرم‌ها">
+                @if (result.Page > 1)
+                {
+                    <a class="page-control" href="@PageUrl(result.Page - 1)" aria-label="صفحه قبلی">قبلی</a>
+                }
+                else
+                {
+                    <span class="page-control disabled" aria-disabled="true">قبلی</span>
+                }
+                @foreach (int pageNumber in VisiblePages)
+                {
+                    <a class="page-number @(pageNumber == result.Page ? "active" : null)"
+                       href="@PageUrl(pageNumber)"
+                       aria-current="@(pageNumber == result.Page ? "page" : null)">@FormatNumber(pageNumber)</a>
+                }
+                @if (result.Page < TotalPages)
+                {
+                    <a class="page-control" href="@PageUrl(result.Page + 1)" aria-label="صفحه بعدی">بعدی</a>
+                }
+                else
+                {
+                    <span class="page-control disabled" aria-disabled="true">بعدی</span>
+                }
+            </nav>
+        </footer>
+    }
+</section>
+
+@code {
+    private readonly CreateModel createModel = new();
+    private EditContext createEditContext = default!;
+    private PagedResult<FormSummary>? result;
+    private bool isLoading = true;
+    private bool showCreate;
+    private bool isCreating;
+    private bool isCreateValid;
+    private Guid? deletingFormId;
+    private string? message;
+    private const int PageSize = 10;
+
+    [SupplyParameterFromQuery(Name = "page")]
+    public int Page { get; set; } = 1;
+
+    private int TotalPages => result is null
+        ? 1
+        : Math.Max(1, (int)Math.Ceiling(result.TotalCount / (double)result.PageSize));
+    private long FirstItemNumber => result is null || result.Items.Count == 0
+        ? 0
+        : (long)(result.Page - 1) * result.PageSize + 1;
+    private long LastItemNumber => result is null ? 0 : FirstItemNumber + result.Items.Count - 1;
+    private IEnumerable<int> VisiblePages
+    {
+        get
+        {
+            if (result is null)
+            {
+                return [];
+            }
+
+            int start = Math.Max(1, result.Page - 2);
+            int end = Math.Min(TotalPages, start + 4);
+            start = Math.Max(1, end - 4);
+            return Enumerable.Range(start, end - start + 1);
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        createEditContext = new EditContext(createModel);
+        createEditContext.OnFieldChanged += CreateFieldChanged;
+    }
+
+    protected override async Task OnParametersSetAsync() => await ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        isLoading = true;
+        result = await FormManagementService.GetFormsAsync(
+            new FormListQuery(Page, PageSize),
+            await ActorFactory.CreateAsync());
+        isLoading = false;
+    }
+
+    private async Task CreateAsync()
+    {
+        if (isCreating || !createEditContext.Validate())
+        {
+            return;
+        }
+
+        isCreating = true;
+        message = null;
+        try
+        {
+            Guid formId = await FormManagementService.CreateAsync(
+                new CreateFormRequest(createModel.Slug, createModel.Title, createModel.Description, createModel.Everyone),
+                await ActorFactory.CreateAsync());
+            NavigationManager.NavigateTo($"/admin/forms/{formId}/builder");
+        }
+        catch (Exception exception) when (exception is ArgumentException or UnauthorizedAccessException)
+        {
+            message = exception.Message;
+        }
+        finally
+        {
+            isCreating = false;
+        }
+    }
+
+    private void InvalidCreate(EditContext _)
+    {
+        isCreateValid = false;
+        message = "برای ایجاد فرم، خطاهای مشخص‌شده را اصلاح کنید.";
+    }
+
+    private void CreateFieldChanged(object? sender, FieldChangedEventArgs args)
+    {
+        isCreateValid = IsCreateModelValid();
+        message = null;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private bool IsCreateModelValid()
+    {
+        ValidationContext context = new(createModel);
+        List<ValidationResult> results = [];
+        return Validator.TryValidateObject(createModel, context, results, validateAllProperties: true);
+    }
+
+    private async Task DeleteAsync(FormSummary form)
+    {
+        if (deletingFormId.HasValue || !form.CanPhysicallyDelete ||
+            !await ConfirmationService.ConfirmAsync(
+                "حذف فیزیکی فرم؟",
+                $"فرم «{form.Title}» و ساختار طراحی آن برای همیشه حذف می‌شود. این عملیات قابل بازیابی نیست.",
+                "بله، برای همیشه حذف شود",
+                "error"))
+        {
+            return;
+        }
+
+        deletingFormId = form.Id;
+        message = null;
+        try
+        {
+            await FormManagementService.DeleteAsync(
+                form.Id,
+                form.RowVersion,
+                await ActorFactory.CreateAsync());
+            await ReloadAsync();
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or
+            UnauthorizedAccessException or KeyNotFoundException or FormConcurrencyException)
+        {
+            message = exception.Message;
+        }
+        finally
+        {
+            deletingFormId = null;
+        }
+    }
+
+    public void Dispose() => createEditContext.OnFieldChanged -= CreateFieldChanged;
+
+    private static string FormatNumber(long value) =>
+        PersianDateTimeFormatter.ToPersianDigits(value.ToString());
+
+    private static string PageUrl(int page) => page <= 1 ? "/admin/forms" : $"/admin/forms?page={page}";
+
+    private sealed class CreateModel
+    {
+        [Required(ErrorMessage = "عنوان فرم الزامی است.")]
+        [StringLength(200, ErrorMessage = "عنوان فرم بیش از حد طولانی است.")]
+        public string Title { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "نشانی لاتین فرم الزامی است.")]
+        [RegularExpression("^[A-Za-z][A-Za-z0-9-]{1,119}$", ErrorMessage = "نشانی باید با حرف لاتین آغاز شود و فقط حرف، عدد و خط تیره داشته باشد.")]
+        public string Slug { get; set; } = string.Empty;
+
+        [StringLength(1000, ErrorMessage = "توضیح کوتاه بیش از حد طولانی است.")]
+        public string? Description { get; set; }
+
+        public bool Everyone { get; set; } = true;
+    }
+}

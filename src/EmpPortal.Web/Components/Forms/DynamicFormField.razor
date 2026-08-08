@@ -1,0 +1,409 @@
+@using System.Globalization
+@using System.Text.Json
+@using EmpPortal.Application.Forms.Schema
+
+@if (FormSubmissionValidator.IsVisible(Element, Values))
+{
+    @switch (Element.Type)
+    {
+        case FormElementType.Heading:
+            <h2 class="dynamic-content-heading">@Element.Content</h2>
+            break;
+        case FormElementType.Paragraph:
+            <p class="dynamic-content-paragraph">@Element.Content</p>
+            break;
+        case FormElementType.Divider:
+            <hr class="dynamic-divider" />
+            break;
+        case FormElementType.Alert:
+            <div class="dynamic-alert" role="note">@Element.Content</div>
+            break;
+        case FormElementType.Hidden:
+            break;
+        case FormElementType.TextArea:
+        case FormElementType.RichText:
+            <div class="dynamic-field @WidthClass">
+                @FieldLabel
+                <textarea id="@InputId" class="form-control dynamic-input" rows="@(Element.Type == FormElementType.RichText ? 7 : 4)"
+                          placeholder="@Element.Placeholder" readonly="@Element.ReadOnly"
+                          aria-describedby="@HelpId" @oninput="SetStringAsync">@StringValue</textarea>
+                @FieldHelp
+                @FieldErrors
+            </div>
+            break;
+        case FormElementType.Select:
+            <div class="dynamic-field @WidthClass">
+                @FieldLabel
+                <select id="@InputId" class="form-select dynamic-input" value="@StringValue"
+                        disabled="@Element.ReadOnly" @onchange="SetStringAsync">
+                    <option value="">انتخاب کنید</option>
+                    @foreach (FormOptionDefinition option in Element.Options)
+                    {
+                        <option value="@option.Value">@option.Label</option>
+                    }
+                </select>
+                @FieldHelp
+                @FieldErrors
+            </div>
+            break;
+        case FormElementType.MultiSelect:
+            <div class="dynamic-field @WidthClass">
+                @FieldLabel
+                <select id="@InputId" class="form-select dynamic-input" multiple size="@Math.Clamp(Element.Options.Count, 3, 7)"
+                        disabled="@Element.ReadOnly" @onchange="SetMultipleAsync">
+                    @foreach (FormOptionDefinition option in Element.Options)
+                    {
+                        <option value="@option.Value" selected="@SelectedValues.Contains(option.Value)">@option.Label</option>
+                    }
+                </select>
+                @FieldHelp
+                @FieldErrors
+            </div>
+            break;
+        case FormElementType.Radio:
+            <fieldset class="dynamic-field @WidthClass">
+                <legend>@Element.Label @RequiredMark</legend>
+                <div class="dynamic-choice-list">
+                    @foreach (FormOptionDefinition option in Element.Options)
+                    {
+                        string optionId = $"{InputId}-{option.Value}";
+                        <label class="dynamic-choice" for="@optionId">
+                            <input id="@optionId" type="radio" name="@InputId" value="@option.Value"
+                                   checked="@(StringValue == option.Value)" disabled="@Element.ReadOnly"
+                                   @onchange="() => SetStringValueAsync(option.Value)" />
+                            <span>@option.Label</span>
+                        </label>
+                    }
+                </div>
+                @FieldHelp
+                @FieldErrors
+            </fieldset>
+            break;
+        case FormElementType.Checkbox:
+        case FormElementType.Switch:
+            <div class="dynamic-field @WidthClass">
+                <label class="dynamic-switch" for="@InputId">
+                    <input id="@InputId" type="checkbox" role="@(Element.Type == FormElementType.Switch ? "switch" : null)"
+                           checked="@BooleanValue" disabled="@Element.ReadOnly" @onchange="SetBooleanAsync" />
+                    <span>@Element.Label @RequiredMark</span>
+                </label>
+                @FieldHelp
+                @FieldErrors
+            </div>
+            break;
+        case FormElementType.Date:
+        case FormElementType.DateTime:
+        case FormElementType.Time:
+            <div class="dynamic-field @WidthClass">
+                @FieldLabel
+                <PersianTemporalInput Id="@InputId"
+                                      AriaLabel="@Element.Label"
+                                      Mode="@GetTemporalMode(Element.Type)"
+                                      Value="@StringValue"
+                                      ValueChanged="SetTemporalValueAsync"
+                                      Disabled="@Element.ReadOnly" />
+                @FieldHelp
+                @FieldErrors
+            </div>
+            break;
+        case FormElementType.DateRange:
+            <fieldset class="dynamic-field @WidthClass">
+                <legend>@Element.Label @RequiredMark</legend>
+                <div class="dynamic-date-range">
+                    <label>از
+                        <PersianTemporalInput AriaLabel="شروع بازه تاریخ"
+                                              Mode="PersianTemporalMode.Date"
+                                              Value="@DateRangeStart"
+                                              ValueChanged="SetDateRangeStartAsync"
+                                              Disabled="@Element.ReadOnly" />
+                    </label>
+                    <label>تا
+                        <PersianTemporalInput AriaLabel="پایان بازه تاریخ"
+                                              Mode="PersianTemporalMode.Date"
+                                              Value="@DateRangeEnd"
+                                              ValueChanged="SetDateRangeEndAsync"
+                                              Disabled="@Element.ReadOnly" />
+                    </label>
+                </div>
+                @FieldHelp
+                @FieldErrors
+            </fieldset>
+            break;
+        case FormElementType.Repeater:
+        case FormElementType.Table:
+            <fieldset class="dynamic-field dynamic-repeater @WidthClass">
+                <legend>@Element.Label @RequiredMark</legend>
+                @for (int rowIndex = 0; rowIndex < rows.Count; rowIndex++)
+                {
+                    int capturedIndex = rowIndex;
+                    <article class="dynamic-repeater-row">
+                        <header><strong>ردیف @(rowIndex + 1)</strong>
+                            @if (!Element.ReadOnly)
+                            {
+                                <button type="button" class="icon-button danger" @onclick="() => RemoveRowAsync(capturedIndex)" aria-label="حذف ردیف">×</button>
+                            }
+                        </header>
+                        <div class="dynamic-grid">
+                            @foreach (FormElementDefinition child in Element.Children)
+                            {
+                                <DynamicFormField Element="child" Values="rows[capturedIndex]" Errors="Errors" NotifyChanged="SaveRowsAsync" />
+                            }
+                        </div>
+                    </article>
+                }
+                @if (!Element.ReadOnly)
+                {
+                    <button type="button" class="secondary-button small" @onclick="AddRowAsync">افزودن ردیف</button>
+                }
+                @FieldHelp
+                @FieldErrors
+            </fieldset>
+            break;
+        case FormElementType.CurrentUser:
+        case FormElementType.Calculated:
+            <div class="dynamic-field @WidthClass">
+                @FieldLabel
+                <input id="@InputId" class="form-control dynamic-input" value="@ComputedValue" readonly />
+                @FieldHelp
+                @FieldErrors
+            </div>
+            break;
+        default:
+            <div class="dynamic-field @WidthClass">
+                @FieldLabel
+                <input id="@InputId" class="form-control dynamic-input" type="@InputType"
+                       value="@StringValue" placeholder="@Element.Placeholder" readonly="@Element.ReadOnly"
+                       min="@Minimum" max="@Maximum" @oninput="SetInputAsync" />
+                @FieldHelp
+                @FieldErrors
+            </div>
+            break;
+    }
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public FormElementDefinition Element { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public Dictionary<string, JsonElement> Values { get; set; } = default!;
+
+    [Parameter]
+    public IReadOnlyDictionary<string, string[]> Errors { get; set; } =
+        new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+
+    [Parameter]
+    public EventCallback NotifyChanged { get; set; }
+
+    private readonly List<Dictionary<string, JsonElement>> rows = [];
+    private string? lastRowsJson;
+
+    protected override void OnParametersSet()
+    {
+        if (Element.Type is FormElementType.Repeater or FormElementType.Table)
+        {
+            string currentJson = Values.TryGetValue(Element.Key, out JsonElement value) &&
+                value.ValueKind == JsonValueKind.Array
+                    ? value.GetRawText()
+                    : "[]";
+            if (!string.Equals(currentJson, lastRowsJson, StringComparison.Ordinal))
+            {
+                rows.Clear();
+                rows.AddRange(JsonSerializer.Deserialize<List<Dictionary<string, JsonElement>>>(currentJson) ?? []);
+                lastRowsJson = currentJson;
+            }
+        }
+    }
+
+    private string InputId => $"field-{Element.Id:N}";
+    private string HelpId => $"{InputId}-help";
+    private string WidthClass => $"dynamic-col-{Math.Clamp(Element.Width, 1, 12)}";
+    private string? Minimum => Element.Validation.MinimumValue?.ToString(CultureInfo.InvariantCulture);
+    private string? Maximum => Element.Validation.MaximumValue?.ToString(CultureInfo.InvariantCulture);
+    private string StringValue => Values.TryGetValue(Element.Key, out JsonElement value) ? ToStringValue(value) : Element.DefaultValue ?? string.Empty;
+    private bool BooleanValue => Values.TryGetValue(Element.Key, out JsonElement value) && value.ValueKind == JsonValueKind.True;
+    private HashSet<string> SelectedValues => Values.TryGetValue(Element.Key, out JsonElement value) && value.ValueKind == JsonValueKind.Array
+        ? value.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.String).Select(item => item.GetString() ?? string.Empty).ToHashSet(StringComparer.OrdinalIgnoreCase)
+        : [];
+    private string DateRangeStart => GetDateRangePart("start");
+    private string DateRangeEnd => GetDateRangePart("end");
+    private string ComputedValue => Element.Type == FormElementType.Calculated
+        ? FormCalculationEngine.Evaluate(Element.CalculationExpression ?? string.Empty, Values).Value.ToString(CultureInfo.CurrentCulture)
+        : StringValue;
+    private string InputType => Element.Type switch
+    {
+        FormElementType.Number or FormElementType.Currency or FormElementType.Percentage => "number",
+        FormElementType.Email => "email",
+        FormElementType.Phone => "tel",
+        FormElementType.Url => "url",
+        FormElementType.Slider => "range",
+        _ => "text"
+    };
+
+    private RenderFragment FieldLabel => builder =>
+    {
+        builder.OpenElement(0, "label");
+        builder.AddAttribute(1, "for", InputId);
+        builder.AddAttribute(2, "class", "dynamic-label");
+        builder.AddContent(3, Element.Label);
+        if (Element.Required)
+        {
+            builder.OpenElement(4, "span");
+            builder.AddAttribute(5, "class", "required-mark");
+            builder.AddContent(6, " *");
+            builder.CloseElement();
+        }
+
+        builder.CloseElement();
+    };
+
+    private RenderFragment RequiredMark => builder =>
+    {
+        if (Element.Required)
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", "required-mark");
+            builder.AddContent(2, "*");
+            builder.CloseElement();
+        }
+    };
+
+    private RenderFragment FieldHelp => builder =>
+    {
+        if (!string.IsNullOrWhiteSpace(Element.HelpText))
+        {
+            builder.OpenElement(0, "small");
+            builder.AddAttribute(1, "id", HelpId);
+            builder.AddAttribute(2, "class", "dynamic-help");
+            builder.AddContent(3, Element.HelpText);
+            builder.CloseElement();
+        }
+    };
+
+    private RenderFragment FieldErrors => builder =>
+    {
+        if (Errors.TryGetValue(Element.Key, out string[]? messages))
+        {
+            int sequence = 0;
+            foreach (string message in messages)
+            {
+                builder.OpenElement(sequence++, "div");
+                builder.AddAttribute(sequence++, "class", "dynamic-error");
+                builder.AddContent(sequence++, message);
+                builder.CloseElement();
+            }
+        }
+    };
+
+    private async Task SetStringAsync(ChangeEventArgs args) =>
+        await SetStringValueAsync(args.Value?.ToString() ?? string.Empty);
+
+    private async Task SetInputAsync(ChangeEventArgs args)
+    {
+        string value = args.Value?.ToString() ?? string.Empty;
+        if (Element.Type is FormElementType.Number or FormElementType.Currency or
+            FormElementType.Percentage or FormElementType.Slider &&
+            decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal number))
+        {
+            Values[Element.Key] = JsonSerializer.SerializeToElement(number);
+        }
+        else
+        {
+            Values[Element.Key] = JsonSerializer.SerializeToElement(value);
+        }
+
+        await NotifyChanged.InvokeAsync();
+    }
+
+    private async Task SetStringValueAsync(string value)
+    {
+        Values[Element.Key] = JsonSerializer.SerializeToElement(value);
+        await NotifyChanged.InvokeAsync();
+    }
+
+    private Task SetTemporalValueAsync(string value) => SetStringValueAsync(value);
+
+    private async Task SetBooleanAsync(ChangeEventArgs args)
+    {
+        Values[Element.Key] = JsonSerializer.SerializeToElement(args.Value is true);
+        await NotifyChanged.InvokeAsync();
+    }
+
+    private async Task SetMultipleAsync(ChangeEventArgs args)
+    {
+        string[] selected = args.Value switch
+        {
+            string[] values => values,
+            IEnumerable<string> values => values.ToArray(),
+            string value => [value],
+            _ => []
+        };
+        Values[Element.Key] = JsonSerializer.SerializeToElement(selected);
+        await NotifyChanged.InvokeAsync();
+    }
+
+    private Task SetDateRangeStartAsync(string value) =>
+        SetDateRangeAsync(value, DateRangeEnd);
+
+    private Task SetDateRangeEndAsync(string value) =>
+        SetDateRangeAsync(DateRangeStart, value);
+
+    private async Task SetDateRangeAsync(string start, string end)
+    {
+        Values[Element.Key] = JsonSerializer.SerializeToElement(new { start, end });
+        await NotifyChanged.InvokeAsync();
+    }
+
+    private async Task AddRowAsync()
+    {
+        rows.Add(new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase));
+        await SaveRowsAsync();
+    }
+
+    private async Task RemoveRowAsync(int index)
+    {
+        if (index >= 0 && index < rows.Count)
+        {
+            rows.RemoveAt(index);
+            await SaveRowsAsync();
+        }
+    }
+
+    private async Task SaveRowsAsync()
+    {
+        JsonElement element = JsonSerializer.SerializeToElement(rows);
+        Values[Element.Key] = element;
+        lastRowsJson = element.GetRawText();
+        await NotifyChanged.InvokeAsync();
+    }
+
+    private string GetDateRangePart(string propertyName)
+    {
+        if (Values.TryGetValue(Element.Key, out JsonElement value) &&
+            value.ValueKind == JsonValueKind.Object &&
+            value.TryGetProperty(propertyName, out JsonElement part) &&
+            part.ValueKind == JsonValueKind.String)
+        {
+            return part.GetString() ?? string.Empty;
+        }
+
+        return string.Empty;
+    }
+
+    private static PersianTemporalMode GetTemporalMode(FormElementType type) => type switch
+    {
+        FormElementType.Date => PersianTemporalMode.Date,
+        FormElementType.DateTime => PersianTemporalMode.DateTime,
+        FormElementType.Time => PersianTemporalMode.Time,
+        _ => throw new ArgumentOutOfRangeException(nameof(type))
+    };
+
+    private static string ToStringValue(JsonElement value) => value.ValueKind switch
+    {
+        JsonValueKind.String => value.GetString() ?? string.Empty,
+        JsonValueKind.Number => value.GetRawText(),
+        JsonValueKind.True => bool.TrueString,
+        JsonValueKind.False => bool.FalseString,
+        _ => string.Empty
+    };
+}

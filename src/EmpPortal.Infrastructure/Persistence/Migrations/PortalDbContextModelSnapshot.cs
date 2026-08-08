@@ -105,6 +105,297 @@ namespace EmpPortal.Infrastructure.Persistence.Migrations
                     b.ToTable("RuntimeSettings", "portal");
                 });
 
+            modelBuilder.Entity("EmpPortal.Domain.Forms.FormAccessRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("FormId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Rights")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SubjectKey")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)");
+
+                    b.Property<int>("SubjectType")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("FormId", "SubjectType", "SubjectKey")
+                        .IsUnique();
+
+                    b.ToTable("FormAccessRules", "forms");
+                });
+
+            modelBuilder.Entity("EmpPortal.Domain.Forms.FormAnswerIndex", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool?>("BooleanValue")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset?>("DateTimeValue")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal?>("DecimalValue")
+                        .HasPrecision(38, 10)
+                        .HasColumnType("decimal(38,10)");
+
+                    b.Property<Guid>("FieldId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("FieldName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("FieldType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("int");
+
+                    b.Property<string>("StringValue")
+                        .HasMaxLength(700)
+                        .HasColumnType("nvarchar(700)");
+
+                    b.Property<Guid>("SubmissionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FieldId", "DateTimeValue");
+
+                    b.HasIndex("FieldId", "DecimalValue");
+
+                    b.HasIndex("FieldId", "StringValue");
+
+                    b.HasIndex("SubmissionId", "FieldId", "Sequence")
+                        .IsUnique();
+
+                    b.ToTable("FormAnswerIndexes", "forms");
+                });
+
+            modelBuilder.Entity("EmpPortal.Domain.Forms.FormDefinition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("AllowDrafts")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("AllowEditAfterSubmit")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset?>("ClosesAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("CurrentPublishedVersionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<int?>("MaxSubmissionsPerUser")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("OpensAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("UpdatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("CurrentPublishedVersionId");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.HasIndex("UpdatedByUserId");
+
+                    b.HasIndex("Status", "OpensAtUtc", "ClosesAtUtc");
+
+                    b.ToTable("Forms", "forms");
+                });
+
+            modelBuilder.Entity("EmpPortal.Domain.Forms.FormSubmission", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DataJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("FormId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("FormVersionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("SubmittedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("SubmittedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("TrackingCode")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("WithdrawnAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FormVersionId");
+
+                    b.HasIndex("TrackingCode")
+                        .IsUnique();
+
+                    b.HasIndex("SubmittedByUserId", "FormId")
+                        .IsUnique()
+                        .HasFilter("[Status] = 0");
+
+                    b.HasIndex("FormId", "Status", "SubmittedAtUtc");
+
+                    b.HasIndex("SubmittedByUserId", "FormId", "Status");
+
+                    b.ToTable("FormSubmissions", "forms", t =>
+                        {
+                            t.HasCheckConstraint("CK_FormSubmissions_DataJson_IsJson", "ISJSON([DataJson]) = 1");
+                        });
+                });
+
+            modelBuilder.Entity("EmpPortal.Domain.Forms.FormVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DefinitionJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("FormId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("PublishedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("SchemaHash")
+                        .IsRequired()
+                        .HasColumnType("char(64)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("UpdatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("VersionNumber")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("UpdatedByUserId");
+
+                    b.HasIndex("FormId", "Status");
+
+                    b.HasIndex("FormId", "VersionNumber")
+                        .IsUnique();
+
+                    b.ToTable("FormVersions", "forms", t =>
+                        {
+                            t.HasCheckConstraint("CK_FormVersions_DefinitionJson_IsJson", "ISJSON([DefinitionJson]) = 1");
+                        });
+                });
+
             modelBuilder.Entity("EmpPortal.Domain.Sessions.ApplicationSession", b =>
                 {
                     b.Property<Guid>("Id")
@@ -392,6 +683,92 @@ namespace EmpPortal.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("EmpPortal.Domain.Configuration.RuntimeSetting", b =>
                 {
+                    b.HasOne("EmpPortal.Infrastructure.Persistence.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EmpPortal.Domain.Forms.FormAccessRule", b =>
+                {
+                    b.HasOne("EmpPortal.Infrastructure.Persistence.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EmpPortal.Domain.Forms.FormDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("FormId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EmpPortal.Domain.Forms.FormAnswerIndex", b =>
+                {
+                    b.HasOne("EmpPortal.Domain.Forms.FormSubmission", null)
+                        .WithMany()
+                        .HasForeignKey("SubmissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EmpPortal.Domain.Forms.FormDefinition", b =>
+                {
+                    b.HasOne("EmpPortal.Infrastructure.Persistence.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EmpPortal.Domain.Forms.FormVersion", null)
+                        .WithMany()
+                        .HasForeignKey("CurrentPublishedVersionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("EmpPortal.Infrastructure.Persistence.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EmpPortal.Domain.Forms.FormSubmission", b =>
+                {
+                    b.HasOne("EmpPortal.Domain.Forms.FormDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("FormId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EmpPortal.Domain.Forms.FormVersion", null)
+                        .WithMany()
+                        .HasForeignKey("FormVersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EmpPortal.Infrastructure.Persistence.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("SubmittedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EmpPortal.Domain.Forms.FormVersion", b =>
+                {
+                    b.HasOne("EmpPortal.Infrastructure.Persistence.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EmpPortal.Domain.Forms.FormDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("FormId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("EmpPortal.Infrastructure.Persistence.Identity.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UpdatedByUserId")

@@ -6,6 +6,14 @@
     margin: 0 auto;
     max-width: 31rem;
     padding: clamp(1.5rem, 5vw, 3rem);
+    width: min(100%, 31rem);
+}
+
+@media (max-width: 30rem) {
+    .login-shell {
+        border-radius: 1.1rem;
+        padding: 1.25rem;
+    }
 }
 
 .login-heading h1 {
@@ -140,7 +148,8 @@
 }
 
 .input-shell ::deep .form-input.invalid {
-    box-shadow: inset 0 -2px 0 #d92d20;
+    background: #fffafa;
+    box-shadow: inset 0 0 0 1px #fda29b;
 }
 
 .input-shell ::deep .form-input:-webkit-autofill {
@@ -154,23 +163,51 @@
     line-height: 1.6;
 }
 
-.field-group ::deep .field-error,
-::deep .validation-summary {
+.field-group ::deep .field-error {
     color: #b42318;
     font-size: 0.9rem;
 }
 
 .field-group ::deep .field-error {
+    align-items: center;
+    display: flex;
     font-weight: 600;
+    gap: 0.4rem;
+    line-height: 1.7;
+}
+
+.field-group ::deep .field-error::before {
+    background: #d92d20;
+    border-radius: 50%;
+    content: "";
+    flex: 0 0 0.35rem;
+    height: 0.35rem;
+    width: 0.35rem;
 }
 
 .form-alert {
+    align-items: flex-start;
     background: #fef3f2;
     border: 1px solid #fecdca;
     border-radius: 0.75rem;
     color: #b42318;
+    display: flex;
+    gap: 0.65rem;
     line-height: 1.8;
     padding: 0.75rem 1rem;
+}
+
+.form-alert::before {
+    align-items: center;
+    background: #fee4e2;
+    border-radius: 50%;
+    content: "!";
+    display: inline-flex;
+    flex: 0 0 1.5rem;
+    font-weight: 800;
+    height: 1.5rem;
+    justify-content: center;
+    margin-top: 0.1rem;
 }
 
 @media (prefers-reduced-motion: reduce) {

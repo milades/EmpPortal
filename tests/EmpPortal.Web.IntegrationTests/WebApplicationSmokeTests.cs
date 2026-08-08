@@ -46,6 +46,24 @@ public sealed class WebApplicationSmokeTests : IClassFixture<PortalWebApplicatio
         Assert.Contains("ورود با حساب ویندوز", html, StringComparison.Ordinal);
         Assert.Contains("manual-login", html, StringComparison.Ordinal);
         Assert.Contains("__RequestVerificationToken", html, StringComparison.Ordinal);
+        Assert.Contains("در حال اتصال مجدد به پرتال", html, StringComparison.Ordinal);
+        Assert.Contains("تلاش مجدد", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Rejoining the server", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SessionStateEndpointRejectsAnonymousBrowser()
+    {
+        using HttpClient client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        using HttpResponseMessage response = await client.GetAsync("/api/auth/session-state");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Contains("no-store", response.Headers.CacheControl?.ToString(), StringComparison.Ordinal);
     }
 }
 

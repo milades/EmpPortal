@@ -1,0 +1,118 @@
+@page "/forms"
+@attribute [Authorize]
+
+@using EmpPortal.Application.Forms
+@using EmpPortal.Application.Localization
+@using EmpPortal.Web.Security
+@using Microsoft.AspNetCore.Authorization
+
+@inject IFormSubmissionService FormSubmissionService
+@inject FormActorFactory ActorFactory
+@inject IConfiguration Configuration
+
+<PageTitle>ثبت‌نام‌ها و رویدادها | @PortalTitle</PageTitle>
+
+<section class="forms-catalog events-catalog" aria-labelledby="forms-title">
+    <header class="events-hero">
+        <div class="events-hero-copy">
+            <span class="eyebrow">خدمات الکترونیک کارکنان</span>
+            <h1 id="forms-title">ثبت‌نام‌ها و رویدادها</h1>
+            <p>
+                فرم‌های منتشرشده توسط مدیریت پرتال برای ثبت‌نام در جشنواره، کنسرت، جشن، برنامه‌های سازمانی
+                و سایر درخواست‌های مرتبط با کارکنان.
+            </p>
+            <div class="events-hero-meta" aria-label="خلاصه وضعیت">
+                <span><strong>@FormatCount(forms.Count)</strong><small>فرم فعال</small></span>
+                <span><strong>@FormatCount(forms.Sum(form => form.SubmissionCount))</strong><small>ثبت نهایی شما</small></span>
+            </div>
+        </div>
+        <div class="events-hero-panel" aria-hidden="true">
+            <div class="events-hero-orb"></div>
+            <div class="events-hero-stack">
+                <article>
+                    <span>جشنواره</span>
+                    <strong>ثبت‌نام رویدادها</strong>
+                </article>
+                <article>
+                    <span>کنسرت و جشن</span>
+                    <strong>برنامه‌های فرهنگی</strong>
+                </article>
+                <article>
+                    <span>درخواست سازمانی</span>
+                    <strong>فرم‌های منتشرشده</strong>
+                </article>
+            </div>
+        </div>
+    </header>
+
+    @if (isLoading)
+    {
+        <div class="loading-panel" role="status">در حال دریافت فهرست ثبت‌نام‌ها…</div>
+    }
+    else if (forms.Count == 0)
+    {
+        <div class="empty-state events-empty">
+            <div class="events-empty-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm2 5h6M9 12h6M9 16h4" /></svg>
+            </div>
+            <h2>ثبت‌نام فعالی وجود ندارد</h2>
+            <p>به‌محض انتشار فرم توسط مدیریت پرتال، رویدادها و درخواست‌های مجاز برای شما در این صفحه نمایش داده می‌شوند.</p>
+        </div>
+    }
+    else
+    {
+        <div class="form-card-grid events-card-grid">
+            @foreach ((FormSummary form, int index) in forms.Select((form, index) => (form, index)))
+            {
+                <article class="form-catalog-card event-card tone-@GetTone(index)">
+                    <div class="event-card-top">
+                        <div class="form-card-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M7 3v3M17 3v3M4 9h16M6 5h12a1 1 0 0 1 1 1v13H5V6a1 1 0 0 1 1-1Z" /></svg>
+                        </div>
+                        <span class="status-badge published">باز برای ثبت‌نام</span>
+                    </div>
+                    <div class="form-card-content">
+                        <h2>@form.Title</h2>
+                        @if (form.ClosesAtUtc.HasValue)
+                        {
+                            <p>مهلت تکمیل: @PersianDateTimeFormatter.FormatDateTime(form.ClosesAtUtc)</p>
+                        }
+                        else
+                        {
+                            <p>بدون مهلت زمانی اعلام‌شده؛ تا زمان انتشار فعال باقی می‌ماند.</p>
+                        }
+                        <div class="event-card-stats">
+                            <span>ثبت‌های شما: @PersianDateTimeFormatter.ToPersianDigits(form.SubmissionCount.ToString())</span>
+                            <span>بروزرسانی: @PersianDateTimeFormatter.FormatDate(form.UpdatedAtUtc)</span>
+                        </div>
+                    </div>
+                    <a class="primary-button" href="@($"/forms/{form.Slug}")">شروع ثبت‌نام</a>
+                </article>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    private IReadOnlyList<FormSummary> forms = [];
+    private bool isLoading = true;
+    private string PortalTitle => Configuration["Portal:Title"] ?? "پرتال کارمندی";
+
+    protected override async Task OnInitializedAsync()
+    {
+        forms = await FormSubmissionService.GetAvailableFormsAsync(await ActorFactory.CreateAsync());
+        isLoading = false;
+    }
+
+    private string FormatCount(long value) => isLoading
+        ? "…"
+        : PersianDateTimeFormatter.ToPersianDigits(value.ToString());
+
+    private static string GetTone(int index) => (index % 4) switch
+    {
+        0 => "blue",
+        1 => "violet",
+        2 => "teal",
+        _ => "amber"
+    };
+}

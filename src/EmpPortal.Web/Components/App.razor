@@ -8,6 +8,7 @@
     <base href="/" />
     <ResourcePreloader />
     <link rel="stylesheet" href="@Assets["vendor/bootstrap/css/bootstrap.rtl.min.css"]" />
+    <link rel="stylesheet" href="@Assets["vendor/sweetalert2/sweetalert2.min.css"]" />
     <link rel="stylesheet" href="@Assets["css/tailwind.css"]" />
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <link rel="stylesheet" href="@Assets["EmpPortal.Web.styles.css"]" />
@@ -19,6 +20,10 @@
     <Routes @rendermode="@PageRenderMode" />
     <ReconnectModal />
     <script src="@Assets["vendor/bootstrap/js/bootstrap.bundle.min.js"]"></script>
+    <script src="@Assets["vendor/sweetalert2/sweetalert2.all.min.js"]"></script>
+    <script src="@Assets["js/confirmation.js"]"></script>
+    <script src="@Assets["js/session-guard.js"]"></script>
+    <script src="@Assets["js/submit-loading.js"]"></script>
     <script src="@Assets["_framework/blazor.web.js"]"></script>
 </body>
 

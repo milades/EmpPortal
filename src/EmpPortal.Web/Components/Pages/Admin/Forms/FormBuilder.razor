@@ -1,0 +1,443 @@
+@page "/admin/forms/{FormId:guid}/builder"
+@attribute [Authorize]
+
+@using System.Globalization
+@using EmpPortal.Application.Forms
+@using EmpPortal.Application.Forms.Schema
+@using EmpPortal.Domain.Forms
+@using EmpPortal.Web.Components.Forms
+@using EmpPortal.Web.Security
+@using Microsoft.AspNetCore.Authorization
+
+@inject IFormManagementService FormManagementService
+@inject FormActorFactory ActorFactory
+@inject NavigationManager NavigationManager
+@inject EmpPortal.Web.Services.IConfirmationService ConfirmationService
+
+<PageTitle>@(editor?.Title ?? "فرم‌ساز") | مدیریت فرم‌ها</PageTitle>
+
+<section class="form-builder-page" aria-labelledby="builder-title">
+    @if (isLoading)
+    {
+        <div class="loading-panel" role="status">در حال بارگذاری فرم‌ساز…</div>
+    }
+    else if (editor is null)
+    {
+        <div class="empty-state"><h1>فرم یافت نشد</h1><p>فرم وجود ندارد یا مجوز ویرایش آن را ندارید.</p><a class="secondary-button" href="/admin/forms">بازگشت</a></div>
+    }
+    else
+    {
+        <header class="builder-header">
+            <div class="builder-title-block"><a class="back-link" href="/admin/forms">← فرم‌ها</a><div><span class="eyebrow">نسخه طراحی @editor.DraftVersion</span><h1 id="builder-title">@settings.Title</h1><span class="status-badge @editor.Status.ToString().ToLowerInvariant()">@FormUiText.Lifecycle(editor.Status)</span></div></div>
+            <div class="builder-header-actions">
+                @if (editor.Status == FormLifecycleStatus.Archived)
+                {
+                    <span class="save-indicator archived-readonly">فقط خواندنی</span>
+                }
+                else
+                {
+                    <span class="save-indicator @(hasUnsavedChanges ? "dirty" : "")">@(hasUnsavedChanges ? "تغییرات ذخیره‌نشده" : "ذخیره‌شده")</span>
+                    <AsyncActionButton CssClass="secondary-button" Disabled="@isBusy" LoadingText="در حال ذخیره…" OnClick="SaveAsync">ذخیره پیش‌نویس</AsyncActionButton>
+                }
+                @if (editor.Status == FormLifecycleStatus.Draft || editor.Status == FormLifecycleStatus.Published)
+                {
+                    <AsyncActionButton CssClass="primary-button" Disabled="@isBusy" LoadingText="در حال انتشار…" OnClick="PublishAsync">انتشار نسخه</AsyncActionButton>
+                }
+                else if (editor.Status == FormLifecycleStatus.Paused)
+                {
+                    <AsyncActionButton CssClass="primary-button" Disabled="@isBusy" LoadingText="در حال فعال‌سازی…" OnClick="ResumeAsync">فعال‌سازی مجدد</AsyncActionButton>
+                }
+            </div>
+        </header>
+
+        @if (!string.IsNullOrWhiteSpace(message))
+        {
+            <div class="form-notice @messageClass" role="status">@message</div>
+        }
+
+        @if (editor.Status == FormLifecycleStatus.Archived)
+        {
+            <section class="archived-readonly-panel" role="status">
+                <span aria-hidden="true">ب</span>
+                <div><h2>این فرم بایگانی و فقط خواندنی است</h2><p>طراحی، تنظیمات و سطح دسترسی فرم بایگانی‌شده قابل تغییر نیست. برای بررسی داده‌های قبلی می‌توانید گزارش پاسخ‌ها را مشاهده کنید.</p></div>
+                <a class="secondary-button" href="@($"/admin/forms/{FormId}/submissions")">مشاهده گزارش پاسخ‌ها</a>
+            </section>
+        }
+        else
+        {
+        <nav class="builder-tabs" aria-label="بخش‌های فرم‌ساز">
+            @foreach ((BuilderTab tab, string title) in Tabs)
+            {
+                <button type="button" class="@(activeTab == tab ? "active" : null)" @onclick="() => activeTab = tab">@title</button>
+            }
+        </nav>
+
+        @if (activeTab == BuilderTab.Design)
+        {
+            <div class="builder-workspace">
+                <aside class="builder-palette">
+                    <h2>المنت‌ها</h2><p>المنت را بکشید و داخل بخش رها کنید، یا روی آن کلیک کنید.</p>
+                    @foreach (IGrouping<string, PaletteItem> group in Palette.GroupBy(item => item.Category))
+                    {
+                        <section><h3>@group.Key</h3><div class="palette-grid">
+                            @foreach (PaletteItem item in group)
+                            {
+                                <button type="button" class="palette-item" draggable="true" @ondragstart="() => BeginPaletteDrag(item.Type)" @onclick="() => AddElement(item.Type)">
+                                    <span aria-hidden="true">@item.Icon</span><strong>@FormUiText.ElementType(item.Type)</strong>
+                                </button>
+                            }
+                        </div></section>
+                    }
+                </aside>
+
+                <main class="builder-canvas">
+                    <div class="page-tabs">
+                        @for (int pageIndex = 0; pageIndex < schema.Pages.Count; pageIndex++)
+                        {
+                            int capturedIndex = pageIndex;
+                            <button type="button" class="@(selectedPageIndex == capturedIndex ? "active" : null)" @onclick="() => SelectPage(capturedIndex)">@schema.Pages[capturedIndex].Title</button>
+                        }
+                        <button type="button" class="add-tab" @onclick="AddPage">+ صفحه</button>
+                    </div>
+
+                    @if (schema.Pages.Count > 0)
+                    {
+                        FormPageDefinition currentPage = schema.Pages[selectedPageIndex];
+                        <div class="canvas-page">
+                            <header><input class="canvas-title-input" value="@currentPage.Title" @oninput="args => UpdatePageTitle(currentPage, args)" aria-label="عنوان صفحه" /><button type="button" class="icon-button danger" disabled="@(schema.Pages.Count == 1)" @onclick="() => RemovePage(currentPage.Id)" title="حذف صفحه">×</button></header>
+                            @foreach (FormSectionDefinition section in currentPage.Sections)
+                            {
+                                <section class="canvas-section @(selectedSectionId == section.Id ? "selected" : null)" @onclick="() => SelectSection(section.Id)"
+                                         @ondragover:preventDefault @ondrop="() => DropOnSection(section.Id)">
+                                    <header><input value="@section.Title" placeholder="عنوان بخش (اختیاری)" @oninput="args => UpdateSectionTitle(section, args)" /><div><span>@section.Elements.Count المنت</span><button type="button" class="icon-button" @onclick:stopPropagation @onclick="() => DuplicateSection(section)">⧉</button><button type="button" class="icon-button danger" @onclick:stopPropagation @onclick="() => RemoveSection(section.Id)">×</button></div></header>
+                                    <div class="canvas-elements">
+                                        @if (section.Elements.Count == 0)
+                                        {
+                                            <div class="canvas-dropzone">المنت‌ها را اینجا رها کنید</div>
+                                        }
+                                        @for (int elementIndex = 0; elementIndex < section.Elements.Count; elementIndex++)
+                                        {
+                                            FormElementDefinition canvasElement = section.Elements[elementIndex];
+                                            int capturedIndex = elementIndex;
+                                            <article class="canvas-element @(selectedElementId == canvasElement.Id ? "selected" : null)" draggable="true"
+                                                     @ondragstart="() => BeginElementDrag(section.Id, canvasElement.Id)" @ondragover:preventDefault
+                                                     @ondrop:stopPropagation @ondrop="() => DropBefore(section.Id, capturedIndex)" @onclick:stopPropagation @onclick="() => SelectElement(canvasElement.Id)">
+                                                <div class="drag-handle" aria-hidden="true">⋮⋮</div>
+                                                <div class="canvas-element-preview"><small>@FormUiText.ElementType(canvasElement.Type)</small><strong>@GetElementTitle(canvasElement)</strong>@if (canvasElement.Required){<span class="required-mark">*</span>}<span class="element-meta">@canvasElement.Key · @canvasElement.Width/12</span></div>
+                                                <div class="element-actions"><button type="button" class="icon-button" @onclick:stopPropagation @onclick="() => MoveElement(section.Id, canvasElement.Id, -1)" disabled="@(capturedIndex == 0)">↑</button><button type="button" class="icon-button" @onclick:stopPropagation @onclick="() => MoveElement(section.Id, canvasElement.Id, 1)" disabled="@(capturedIndex == section.Elements.Count - 1)">↓</button><button type="button" class="icon-button" @onclick:stopPropagation @onclick="() => DuplicateElement(section.Id, canvasElement.Id)">⧉</button><button type="button" class="icon-button danger" @onclick:stopPropagation @onclick="() => RemoveElement(section.Id, canvasElement.Id)">×</button></div>
+                                            </article>
+                                        }
+                                    </div>
+                                </section>
+                            }
+                            <button type="button" class="add-section-button" @onclick="AddSection">+ افزودن بخش</button>
+                        </div>
+                    }
+                </main>
+
+                <aside class="builder-properties">
+                    @if (SelectedElement is FormElementDefinition element)
+                    {
+                        <header><div><small>تنظیمات المنت</small><h2>@FormUiText.ElementType(element.Type)</h2></div><div><button type="button" class="icon-button danger" title="حذف المنت" @onclick="RemoveSelectedElement">⌫</button><button type="button" class="icon-button" @onclick="() => selectedElementId = null">×</button></div></header>
+                        @if (IsContentElement(element.Type))
+                        {
+                            <label class="property-field">محتوا<textarea class="form-control polished-input" rows="5" @bind="element.Content" @bind:event="oninput" @onchange="MarkChanged"></textarea></label>
+                        }
+                        else
+                        {
+                            <label class="property-field">عنوان<input class="form-control polished-input" @bind="element.Label" @bind:event="oninput" @onchange="MarkChanged" /></label>
+                            <label class="property-field">کلید داده<input class="form-control polished-input" dir="ltr" @bind="element.Key" @bind:event="oninput" @onchange="MarkChanged" /></label>
+                            <label class="property-field">متن راهنما<textarea class="form-control polished-input" rows="2" @bind="element.HelpText" @bind:event="oninput" @onchange="MarkChanged"></textarea></label>
+                            <label class="property-field">Placeholder<input class="form-control polished-input" @bind="element.Placeholder" @bind:event="oninput" @onchange="MarkChanged" /></label>
+                            <label class="property-field">مقدار پیش‌فرض<input class="form-control polished-input" @bind="element.DefaultValue" @bind:event="oninput" @onchange="MarkChanged" /></label>
+                            <div class="property-row"><label>عرض<select class="form-select polished-input" @bind="element.Width" @bind:after="MarkChanged">@for(int width=1;width<=12;width++){<option value="@width">@width از ۱۲</option>}</select></label><label class="check-property"><input type="checkbox" @bind="element.Required" @bind:after="MarkChanged" /> الزامی</label><label class="check-property"><input type="checkbox" @bind="element.ReadOnly" @bind:after="MarkChanged" /> فقط‌خواندنی</label></div>
+
+                            @if (RequiresOptions(element.Type))
+                            {
+                                <section class="property-group"><header><h3>گزینه‌ها</h3><button type="button" class="text-button" @onclick="() => AddOption(element)">+ گزینه</button></header>
+                                    @for (int optionIndex = 0; optionIndex < element.Options.Count; optionIndex++)
+                                    {
+                                        int capturedOption = optionIndex;<div class="option-editor"><input aria-label="عنوان گزینه" placeholder="عنوان" @bind="element.Options[capturedOption].Label" @bind:event="oninput" @onchange="MarkChanged" /><input aria-label="مقدار گزینه" dir="ltr" placeholder="value" @bind="element.Options[capturedOption].Value" @bind:event="oninput" @onchange="MarkChanged" /><button type="button" class="icon-button danger" @onclick="() => RemoveOption(element, capturedOption)">×</button></div>
+                                    }
+                                </section>
+                            }
+
+                            @if (element.Type == FormElementType.Calculated)
+                            {
+                                <label class="property-field">عبارت محاسباتی<input class="form-control polished-input" dir="ltr" placeholder="price * quantity" @bind="element.CalculationExpression" @bind:event="oninput" @onchange="MarkChanged" /><small>توابع مجاز: SUM, MIN, MAX, ROUND</small></label>
+                            }
+
+                            <details class="property-group"><summary>اعتبارسنجی پیشرفته</summary><div class="property-row"><label>حداقل طول<input type="number" class="form-control polished-input" @bind="element.Validation.MinimumLength" @bind:after="MarkChanged" /></label><label>حداکثر طول<input type="number" class="form-control polished-input" @bind="element.Validation.MaximumLength" @bind:after="MarkChanged" /></label></div><div class="property-row"><label>حداقل مقدار<input type="number" step="any" class="form-control polished-input" @bind="element.Validation.MinimumValue" @bind:after="MarkChanged" /></label><label>حداکثر مقدار<input type="number" step="any" class="form-control polished-input" @bind="element.Validation.MaximumValue" @bind:after="MarkChanged" /></label></div><label class="property-field">الگوی Regex<input class="form-control polished-input" dir="ltr" @bind="element.Validation.Pattern" @bind:event="oninput" @onchange="MarkChanged" /></label><label class="property-field">پیام خطای سفارشی<input class="form-control polished-input" @bind="element.Validation.CustomErrorMessage" @bind:event="oninput" @onchange="MarkChanged" /></label></details>
+
+                            <details class="property-group" open="@(element.VisibilityCondition is not null)"><summary>نمایش شرطی</summary>
+                                @if (element.VisibilityCondition is null)
+                                {
+                                    <button type="button" class="secondary-button small" @onclick="() => EnableCondition(element)">افزودن شرط نمایش</button>
+                                }
+                                else
+                                {
+                                    <label class="property-field">منطق<select class="form-select polished-input" @bind="element.VisibilityCondition.Logic" @bind:after="MarkChanged"><option value="@FormConditionLogic.All">همه شرط‌ها</option><option value="@FormConditionLogic.Any">حداقل یک شرط</option></select></label>
+                                    @for (int ruleIndex = 0; ruleIndex < element.VisibilityCondition.Rules.Count; ruleIndex++)
+                                    {
+                                        int capturedRule = ruleIndex; FormConditionRuleDefinition rule = element.VisibilityCondition.Rules[capturedRule];
+                                        <div class="condition-editor"><select aria-label="فیلد مرجع" @bind="rule.FieldKey" @bind:after="MarkChanged"><option value="">انتخاب فیلد</option>@foreach(FormElementDefinition source in ConditionSources(element)){<option value="@source.Key">@source.Label</option>}</select><select aria-label="عملگر" @bind="rule.Operator" @bind:after="MarkChanged">@foreach(FormConditionOperator op in Enum.GetValues<FormConditionOperator>()){<option value="@op">@FormUiText.ConditionOperator(op)</option>}</select>@if(rule.Operator is not FormConditionOperator.IsEmpty and not FormConditionOperator.IsNotEmpty){<input aria-label="مقدار مقایسه" @bind="rule.Value" @bind:event="oninput" @onchange="MarkChanged" />}<button type="button" class="icon-button danger" @onclick="() => RemoveCondition(element, capturedRule)">×</button></div>
+                                    }
+                                    <div class="inline-actions"><button type="button" class="text-button" @onclick="() => AddCondition(element)">+ شرط</button><button type="button" class="text-button danger" @onclick="() => DisableCondition(element)">حذف منطق شرطی</button></div>
+                                }
+                            </details>
+
+                            @if (element.Type is FormElementType.Repeater or FormElementType.Table)
+                            {
+                                <section class="property-group"><header><h3>ستون‌ها / فیلدهای ردیف</h3><button type="button" class="text-button" @onclick="() => AddChild(element)">+ فیلد</button></header>
+                                    @foreach (FormElementDefinition child in element.Children)
+                                    {
+                                        <button type="button" class="child-element-row" @onclick="() => SelectElement(child.Id)"><span>@child.Label</span><code dir="ltr">@child.Key</code></button>
+                                    }
+                                </section>
+                            }
+                        }
+                    }
+                    else if (SelectedSection is FormSectionDefinition section)
+                    {
+                        <header><div><small>تنظیمات بخش</small><h2>@(section.Title ?? "بدون عنوان")</h2></div></header><label class="property-field">عنوان<input class="form-control polished-input" @bind="section.Title" @bind:event="oninput" @onchange="MarkChanged" /></label><label class="property-field">توضیحات<textarea class="form-control polished-input" rows="3" @bind="section.Description" @bind:event="oninput" @onchange="MarkChanged"></textarea></label>
+                    }
+                    else
+                    {
+                        <div class="properties-empty"><span>⚙</span><h2>تنظیمات المنت</h2><p>یک المنت یا بخش را از بوم انتخاب کنید.</p></div>
+                    }
+                </aside>
+            </div>
+        }
+        else if (activeTab == BuilderTab.Settings)
+        {
+            <div class="builder-panel settings-panel"><h2>تنظیمات و زمان‌بندی</h2><div class="settings-form-grid"><label>عنوان فرم<input class="form-control polished-input" @bind="settings.Title" @bind:event="oninput" @onchange="MarkChanged" /></label><label class="span-2">توضیحات<textarea class="form-control polished-input" rows="3" @bind="settings.Description" @bind:event="oninput" @onchange="MarkChanged"></textarea></label><label>شروع نمایش<PersianTemporalInput AriaLabel="شروع نمایش فرم" Mode="PersianTemporalMode.DateTime" Value="@opensAtLocal" ValueChanged="UpdateOpensAtAsync" YearsBack="0" YearsForward="2" /></label><label>پایان نمایش<PersianTemporalInput AriaLabel="پایان نمایش فرم" Mode="PersianTemporalMode.DateTime" Value="@closesAtLocal" ValueChanged="UpdateClosesAtAsync" YearsBack="0" YearsForward="2" /></label><label>متن دکمه ثبت<input class="form-control polished-input" @bind="schema.SubmitButtonText" @bind:event="oninput" @onchange="MarkChanged" /></label><label>حداکثر ثبت هر کاربر<input type="number" min="1" class="form-control polished-input" @bind="settings.MaxSubmissionsPerUser" @bind:after="MarkChanged" /></label></div><div class="policy-cards"><label><input type="checkbox" @bind="settings.AllowDrafts" @bind:after="MarkChanged" /><span><strong>ذخیره پیش‌نویس</strong><small>کاربر می‌تواند فرم ناقص را ذخیره و بعداً ادامه دهد.</small></span></label><label><input type="checkbox" @bind="settings.AllowEditAfterSubmit" @bind:after="MarkChanged" /><span><strong>ویرایش پس از ثبت</strong><small>کاربر می‌تواند پاسخ نهایی را مجدداً ویرایش کند.</small></span></label></div><p class="timezone-note">تاریخ‌ها در رابط به تقویم شمسی و ساعت محلی نمایش داده و در پایگاه داده به UTC ذخیره می‌شوند.</p>
+                <section class="lifecycle-panel"><h3>وضعیت فرم</h3><p>فعال/غیرفعال‌سازی دستی مستقل از زمان‌بندی قابل انجام است.</p><div class="inline-actions">@if(editor.Status==FormLifecycleStatus.Published){<AsyncActionButton CssClass="secondary-button" OnClick="PauseAsync" Disabled="@isBusy" LoadingText="در حال توقف…">توقف دستی فرم</AsyncActionButton>}@if(editor.Status==FormLifecycleStatus.Paused){<AsyncActionButton CssClass="primary-button" OnClick="ResumeAsync" Disabled="@isBusy" LoadingText="در حال فعال‌سازی…">فعال‌سازی فرم</AsyncActionButton>}@if(editor.Status!=FormLifecycleStatus.Archived){<AsyncActionButton CssClass="danger-button" OnClick="ArchiveAsync" Disabled="@isBusy" LoadingText="در حال بایگانی…">بایگانی فرم</AsyncActionButton>}</div></section>
+                @if (editor.Status == FormLifecycleStatus.Draft)
+                {
+                    <section class="danger-zone">
+                        <div><h3>حذف فیزیکی فرم</h3><p>فقط فرم پیش‌نویسِ منتشرنشده و بدون هیچ پاسخ یا پیش‌نویس کاربر حذف می‌شود. این عملیات برگشت‌پذیر نیست.</p></div>
+                        <AsyncActionButton CssClass="danger-button" Disabled="@isBusy" LoadingText="در حال حذف…" OnClick="DeleteFormAsync">
+                            حذف فیزیکی
+                        </AsyncActionButton>
+                    </section>
+                }
+            </div>
+        }
+        else if (activeTab == BuilderTab.Access)
+        {
+            <div class="builder-panel access-panel"><h2>سطح دسترسی فرم</h2><p>دسترسی را برای همه کاربران، نقش‌های SQL یا کاربران مشخص تنظیم کنید.</p><div class="access-add"><select class="form-select polished-input" @bind="selectedSubject"><option value="">انتخاب کاربر یا نقش</option>@foreach(FormAccessSubjectOption subject in subjects){<option value="@EncodeSubject(subject)">@subject.DisplayName</option>}</select><button type="button" class="primary-button" @onclick="AddAccessRule" disabled="@string.IsNullOrWhiteSpace(selectedSubject)">افزودن</button></div><div class="access-rule-list">@foreach(FormAccessRuleData rule in accessRules){<article class="access-rule"><div><strong>@rule.SubjectDisplayName</strong><small>@GetSubjectTypeText(rule.SubjectType)</small></div><div class="rights-grid">@foreach((FormAccessRights right,string label) in Rights){<label><input type="checkbox" checked="@rule.Rights.HasFlag(right)" @onchange="args => ToggleRight(rule, right, args)" /> @label</label>}</div><button type="button" class="icon-button danger" @onclick="() => RemoveAccessRule(rule)" disabled="@IsOwnerRule(rule)">×</button></article>}</div></div>
+        }
+        else
+        {
+            <div class="builder-panel preview-panel"><header><div><h2>پیش‌نمایش فرم</h2><p>پیش‌نمایش از همان renderer نهایی استفاده می‌کند؛ داده‌ای ذخیره نمی‌شود.</p></div></header><div class="dynamic-form-surface preview-surface">@foreach(FormPageDefinition formPage in schema.Pages){<section class="dynamic-page-section"><header><h2>@formPage.Title</h2><p>@formPage.Description</p></header>@foreach(FormSectionDefinition section in formPage.Sections){<section class="dynamic-section"><h3>@section.Title</h3><div class="dynamic-grid">@foreach(FormElementDefinition previewElement in section.Elements){<DynamicFormField Element="previewElement" Values="previewValues" NotifyChanged="PreviewChanged" />}</div></section>}</section>}</div></div>
+        }
+        }
+    }
+</section>
+
+@code {
+    [Parameter] public Guid FormId { get; set; }
+
+    private static readonly (BuilderTab Tab, string Title)[] Tabs = [(BuilderTab.Design,"طراحی"),(BuilderTab.Settings,"تنظیمات"),(BuilderTab.Access,"دسترسی"),(BuilderTab.Preview,"پیش‌نمایش")];
+    private static readonly (FormAccessRights Right, string Label)[] Rights = [(FormAccessRights.View,"مشاهده"),(FormAccessRights.Submit,"ثبت پاسخ"),(FormAccessRights.Manage,"مدیریت"),(FormAccessRights.ViewSubmissions,"مشاهده گزارش"),(FormAccessRights.Export,"خروجی")];
+    private static readonly PaletteItem[] Palette =
+    [
+        new(FormElementType.Text,"پایه","T"),new(FormElementType.TextArea,"پایه","¶"),new(FormElementType.RichText,"پایه","R"),new(FormElementType.Number,"پایه","#"),new(FormElementType.Email,"پایه","@"),new(FormElementType.Phone,"پایه","☎"),new(FormElementType.NationalId,"پایه","ک"),
+        new(FormElementType.Date,"تاریخ و زمان","◫"),new(FormElementType.DateTime,"تاریخ و زمان","◷"),new(FormElementType.Time,"تاریخ و زمان","◴"),new(FormElementType.DateRange,"تاریخ و زمان","↔"),
+        new(FormElementType.Select,"انتخاب","⌄"),new(FormElementType.MultiSelect,"انتخاب","☷"),new(FormElementType.Radio,"انتخاب","◉"),new(FormElementType.Checkbox,"انتخاب","☑"),new(FormElementType.Switch,"انتخاب","◐"),new(FormElementType.Slider,"انتخاب","—"),
+        new(FormElementType.Currency,"پیشرفته","﷼"),new(FormElementType.Percentage,"پیشرفته","٪"),new(FormElementType.Url,"پیشرفته","↗"),new(FormElementType.CurrentUser,"پیشرفته","●"),new(FormElementType.Calculated,"پیشرفته","fx"),new(FormElementType.Hidden,"پیشرفته","◌"),new(FormElementType.Repeater,"پیشرفته","⟳"),new(FormElementType.Table,"پیشرفته","▦"),
+        new(FormElementType.Heading,"نمایشی","H"),new(FormElementType.Paragraph,"نمایشی","P"),new(FormElementType.Alert,"نمایشی","!"),new(FormElementType.Divider,"نمایشی","—")
+    ];
+    private readonly Dictionary<string,System.Text.Json.JsonElement> previewValues = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<FormAccessRuleData> accessRules = [];
+    private IReadOnlyList<FormAccessSubjectOption> subjects = [];
+    private FormEditorData? editor;
+    private FormSchemaDefinition schema = new();
+    private SettingsModel settings = new();
+    private BuilderTab activeTab;
+    private int selectedPageIndex;
+    private Guid? selectedSectionId;
+    private Guid? selectedElementId;
+    private Guid? draggedElementId;
+    private Guid? draggedSourceSectionId;
+    private FormElementType? draggedPaletteType;
+    private string? selectedSubject;
+    private string opensAtLocal = string.Empty;
+    private string closesAtLocal = string.Empty;
+    private bool isLoading = true;
+    private bool isBusy;
+    private bool hasUnsavedChanges;
+    private string? message;
+    private string messageClass = string.Empty;
+
+    private FormElementDefinition? SelectedElement => selectedElementId.HasValue ? FormSubmissionValidator.EnumerateElements(schema).FirstOrDefault(item=>item.Id==selectedElementId) : null;
+    private FormSectionDefinition? SelectedSection => selectedSectionId.HasValue ? schema.Pages.SelectMany(page=>page.Sections).FirstOrDefault(item=>item.Id==selectedSectionId) : null;
+
+    protected override async Task OnParametersSetAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        FormActor actor = await ActorFactory.CreateAsync();
+        editor = await FormManagementService.GetEditorAsync(FormId, actor);
+        if (editor is not null)
+        {
+            schema = editor.Schema;
+            settings = new SettingsModel(editor.Title,editor.Description,editor.AllowDrafts,editor.AllowEditAfterSubmit,editor.MaxSubmissionsPerUser);
+            opensAtLocal = ToLocalInput(editor.OpensAtUtc);
+            closesAtLocal = ToLocalInput(editor.ClosesAtUtc);
+            accessRules.Clear(); accessRules.AddRange(editor.AccessRules);
+            subjects = editor.Status == FormLifecycleStatus.Archived
+                ? []
+                : await FormManagementService.GetAccessSubjectsAsync(null, actor);
+            selectedPageIndex = Math.Clamp(selectedPageIndex,0,Math.Max(0,schema.Pages.Count-1));
+        }
+        hasUnsavedChanges=false; isLoading=false;
+    }
+
+    private async Task<bool> SaveAsync()
+    {
+        if(editor is null||isBusy||editor.Status==FormLifecycleStatus.Archived)return false;
+        FormSchemaValidationResult validation=FormSchemaValidator.Validate(schema);
+        if(!validation.IsValid){messageClass="error";message=string.Join(" | ",validation.Errors.Take(8).Select(error=>error.Message));return false;}
+        isBusy=true; message=null;
+        try
+        {
+            UpdateFormSettingsRequest request=new(settings.Title,settings.Description,ParseLocal(opensAtLocal),ParseLocal(closesAtLocal),settings.AllowDrafts,settings.AllowEditAfterSubmit,settings.MaxSubmissionsPerUser);
+            await FormManagementService.SaveDraftAsync(FormId,schema,request,accessRules,editor.RowVersion,await ActorFactory.CreateAsync());
+            messageClass="success";message="پیش‌نویس فرم ذخیره شد.";await LoadAsync();return true;
+        }
+        catch(Exception exception) when(exception is ArgumentException or InvalidOperationException or UnauthorizedAccessException or FormConcurrencyException){messageClass="error";message=exception.Message;return false;}
+        finally{isBusy=false;}
+    }
+
+    private async Task PublishAsync(){if(hasUnsavedChanges&&!await SaveAsync())return;isBusy=true;try{await FormManagementService.PublishAsync(FormId,await ActorFactory.CreateAsync());messageClass="success";message="نسخه جدید فرم منتشر شد.";await LoadAsync();}catch(Exception exception) when(exception is InvalidOperationException or UnauthorizedAccessException or FormConcurrencyException){messageClass="error";message=exception.Message;}finally{isBusy=false;}}
+    private async Task PauseAsync(){isBusy=true;try{await FormManagementService.PauseAsync(FormId,await ActorFactory.CreateAsync());messageClass="success";message="فرم به‌صورت دستی متوقف شد.";await LoadAsync();}catch(Exception exception) when(exception is InvalidOperationException or UnauthorizedAccessException or FormConcurrencyException){messageClass="error";message=exception.Message;}finally{isBusy=false;}}
+    private async Task ResumeAsync(){isBusy=true;try{await FormManagementService.ResumeAsync(FormId,await ActorFactory.CreateAsync());messageClass="success";message="فرم دوباره فعال شد.";await LoadAsync();}catch(Exception exception) when(exception is InvalidOperationException or UnauthorizedAccessException or FormConcurrencyException){messageClass="error";message=exception.Message;}finally{isBusy=false;}}
+    private async Task ArchiveAsync()
+    {
+        if (isBusy || !await ConfirmationService.ConfirmAsync(
+                "بایگانی فرم؟",
+                "فرم از دسترس کاربران خارج می‌شود و تا فعال‌سازی مجدد قابل استفاده نخواهد بود.",
+                "بله، بایگانی شود"))
+        {
+            return;
+        }
+
+        isBusy = true;
+        try
+        {
+            await FormManagementService.ArchiveAsync(FormId, await ActorFactory.CreateAsync());
+            messageClass = "success";
+            message = "فرم بایگانی شد.";
+            await LoadAsync();
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or UnauthorizedAccessException or FormConcurrencyException)
+        {
+            messageClass = "error";
+            message = exception.Message;
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task DeleteFormAsync()
+    {
+        if (editor is null || isBusy)
+        {
+            return;
+        }
+
+        if (!await ConfirmationService.ConfirmAsync(
+                "حذف فیزیکی فرم؟",
+                "ساختار فرم برای همیشه از پایگاه داده حذف می‌شود. این عملیات فقط برای فرم منتشرنشده و بدون داده مجاز است و امکان بازیابی ندارد.",
+                "بله، برای همیشه حذف شود",
+                "error"))
+        {
+            return;
+        }
+
+        isBusy = true;
+        try
+        {
+            await FormManagementService.DeleteAsync(
+                FormId,
+                editor.RowVersion,
+                await ActorFactory.CreateAsync());
+            NavigationManager.NavigateTo("/admin/forms");
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or
+            UnauthorizedAccessException or KeyNotFoundException or FormConcurrencyException)
+        {
+            messageClass = "error";
+            message = exception.Message;
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private void AddPage(){schema.Pages.Add(new FormPageDefinition{Title=$"صفحه {schema.Pages.Count+1}",Sections=[new FormSectionDefinition{Title="بخش جدید"}]});selectedPageIndex=schema.Pages.Count-1;selectedSectionId=schema.Pages[^1].Sections[0].Id;MarkChanged();}
+    private void RemovePage(Guid id){if(schema.Pages.Count<=1)return;int index=schema.Pages.FindIndex(page=>page.Id==id);if(index>=0){schema.Pages.RemoveAt(index);selectedPageIndex=Math.Clamp(selectedPageIndex,0,schema.Pages.Count-1);selectedElementId=null;MarkChanged();}}
+    private void SelectPage(int index){selectedPageIndex=index;selectedSectionId=schema.Pages[index].Sections.FirstOrDefault()?.Id;selectedElementId=null;}
+    private void AddSection(){FormSectionDefinition section=new(){Title="بخش جدید"};schema.Pages[selectedPageIndex].Sections.Add(section);selectedSectionId=section.Id;MarkChanged();}
+    private void RemoveSection(Guid id){FormPageDefinition page=schema.Pages[selectedPageIndex];if(page.Sections.Count<=1){messageClass="error";message="هر صفحه باید حداقل یک بخش داشته باشد.";return;}page.Sections.RemoveAll(section=>section.Id==id);selectedSectionId=page.Sections[0].Id;selectedElementId=null;MarkChanged();}
+    private void DuplicateSection(FormSectionDefinition source){FormSectionDefinition clone=new(){Title=$"{source.Title} (کپی)",Description=source.Description,Columns=source.Columns,Elements=source.Elements.Select(CloneElement).ToList()};schema.Pages[selectedPageIndex].Sections.Add(clone);selectedSectionId=clone.Id;MarkChanged();}
+    private void SelectSection(Guid id){selectedSectionId=id;selectedElementId=null;}
+    private void UpdatePageTitle(FormPageDefinition page,ChangeEventArgs args){page.Title=args.Value?.ToString()??string.Empty;MarkChanged();}
+    private void UpdateSectionTitle(FormSectionDefinition section,ChangeEventArgs args){section.Title=args.Value?.ToString();MarkChanged();}
+    private Task UpdateOpensAtAsync(string value){opensAtLocal=value;MarkChanged();return Task.CompletedTask;}
+    private Task UpdateClosesAtAsync(string value){closesAtLocal=value;MarkChanged();return Task.CompletedTask;}
+
+    private void AddElement(FormElementType type){FormSectionDefinition? section=SelectedSection??schema.Pages.ElementAtOrDefault(selectedPageIndex)?.Sections.FirstOrDefault();if(section is null)return;FormElementDefinition element=CreateElement(type);section.Elements.Add(element);selectedSectionId=section.Id;selectedElementId=element.Id;MarkChanged();}
+    private void SelectElement(Guid id){selectedElementId=id;FormSectionDefinition? section=schema.Pages.SelectMany(page=>page.Sections).FirstOrDefault(candidate=>candidate.Elements.Any(element=>ContainsElement(element,id)));if(section is not null)selectedSectionId=section.Id;}
+    private void RemoveElement(Guid sectionId,Guid elementId){FormSectionDefinition? section=FindSection(sectionId);if(section is null)return;section.Elements.RemoveAll(element=>element.Id==elementId);selectedElementId=null;MarkChanged();}
+    private void RemoveSelectedElement(){if(!selectedElementId.HasValue)return;Guid target=selectedElementId.Value;foreach(FormSectionDefinition section in schema.Pages.SelectMany(formPage=>formPage.Sections)){if(section.Elements.RemoveAll(element=>element.Id==target)>0){selectedElementId=null;MarkChanged();return;}foreach(FormElementDefinition container in section.Elements){if(RemoveChild(container,target)){selectedElementId=null;MarkChanged();return;}}}}
+    private void DuplicateElement(Guid sectionId,Guid elementId){FormSectionDefinition? section=FindSection(sectionId);FormElementDefinition? source=section?.Elements.FirstOrDefault(element=>element.Id==elementId);if(section is null||source is null)return;FormElementDefinition clone=CloneElement(source);clone.Key=NextKey(source.Key+"_copy");clone.Label=$"{source.Label} (کپی)";section.Elements.Insert(section.Elements.IndexOf(source)+1,clone);selectedElementId=clone.Id;MarkChanged();}
+    private void MoveElement(Guid sectionId,Guid elementId,int offset){FormSectionDefinition? section=FindSection(sectionId);if(section is null)return;int oldIndex=section.Elements.FindIndex(element=>element.Id==elementId);int newIndex=oldIndex+offset;if(oldIndex<0||newIndex<0||newIndex>=section.Elements.Count)return;FormElementDefinition element=section.Elements[oldIndex];section.Elements.RemoveAt(oldIndex);section.Elements.Insert(newIndex,element);MarkChanged();}
+    private void BeginPaletteDrag(FormElementType type){draggedPaletteType=type;draggedElementId=null;draggedSourceSectionId=null;}
+    private void BeginElementDrag(Guid sectionId,Guid elementId){draggedPaletteType=null;draggedSourceSectionId=sectionId;draggedElementId=elementId;}
+    private void DropOnSection(Guid sectionId)=>DropBefore(sectionId,FindSection(sectionId)?.Elements.Count??0);
+    private void DropBefore(Guid targetSectionId,int targetIndex){FormSectionDefinition? target=FindSection(targetSectionId);if(target is null)return;if(draggedPaletteType.HasValue){FormElementDefinition created=CreateElement(draggedPaletteType.Value);target.Elements.Insert(Math.Clamp(targetIndex,0,target.Elements.Count),created);selectedElementId=created.Id;}else if(draggedElementId.HasValue&&draggedSourceSectionId.HasValue){FormSectionDefinition? source=FindSection(draggedSourceSectionId.Value);FormElementDefinition? moved=source?.Elements.FirstOrDefault(element=>element.Id==draggedElementId);if(source is not null&&moved is not null){int oldIndex=source.Elements.IndexOf(moved);source.Elements.Remove(moved);if(source==target&&oldIndex<targetIndex)targetIndex--;target.Elements.Insert(Math.Clamp(targetIndex,0,target.Elements.Count),moved);selectedElementId=moved.Id;}}selectedSectionId=target.Id;draggedPaletteType=null;draggedElementId=null;draggedSourceSectionId=null;MarkChanged();}
+
+    private void AddOption(FormElementDefinition element){int index=element.Options.Count+1;element.Options.Add(new FormOptionDefinition{Label=$"گزینه {index}",Value=$"option_{index}"});MarkChanged();}
+    private void RemoveOption(FormElementDefinition element,int index){if(index>=0&&index<element.Options.Count){element.Options.RemoveAt(index);MarkChanged();}}
+    private void EnableCondition(FormElementDefinition element){element.VisibilityCondition=new FormConditionGroupDefinition{Logic=FormConditionLogic.All,Rules=[new FormConditionRuleDefinition()]};MarkChanged();}
+    private void DisableCondition(FormElementDefinition element){element.VisibilityCondition=null;MarkChanged();}
+    private void AddCondition(FormElementDefinition element){element.VisibilityCondition?.Rules.Add(new FormConditionRuleDefinition());MarkChanged();}
+    private void RemoveCondition(FormElementDefinition element,int index){element.VisibilityCondition?.Rules.RemoveAt(index);if(element.VisibilityCondition?.Rules.Count==0)element.VisibilityCondition=null;MarkChanged();}
+    private IEnumerable<FormElementDefinition> ConditionSources(FormElementDefinition current)=>FormSubmissionValidator.EnumerateElements(schema).Where(element=>element.Id!=current.Id&&!IsContentElement(element.Type)&&element.Type is not FormElementType.Repeater and not FormElementType.Table);
+    private void AddChild(FormElementDefinition container){FormElementDefinition child=CreateElement(FormElementType.Text);child.Key=NextKey(container.Key+"_item");child.Label="فیلد ردیف";container.Children.Add(child);selectedElementId=child.Id;MarkChanged();}
+
+    private void AddAccessRule(){if(string.IsNullOrWhiteSpace(selectedSubject))return;FormAccessSubjectOption? subject=subjects.FirstOrDefault(option=>EncodeSubject(option)==selectedSubject);if(subject is null||accessRules.Any(rule=>rule.SubjectType==subject.SubjectType&&string.Equals(rule.SubjectKey,subject.SubjectKey,StringComparison.OrdinalIgnoreCase)))return;accessRules.Add(new FormAccessRuleData(null,subject.SubjectType,subject.SubjectKey,subject.DisplayName,FormAccessRights.View|FormAccessRights.Submit));selectedSubject=null;MarkChanged();}
+    private void RemoveAccessRule(FormAccessRuleData rule){if(IsOwnerRule(rule))return;accessRules.Remove(rule);MarkChanged();}
+    private void ToggleRight(FormAccessRuleData rule,FormAccessRights right,ChangeEventArgs args){int index=accessRules.IndexOf(rule);if(index<0)return;bool enabled=args.Value is true;FormAccessRights rights=enabled?rule.Rights|right:rule.Rights&~right;accessRules[index]=rule with{Rights=rights};MarkChanged();}
+    private static bool IsOwnerRule(FormAccessRuleData rule)=>rule.SubjectType==FormAccessSubjectType.User&&rule.Rights.HasFlag(FormAccessRights.Manage)&&rule.Rights.HasFlag(FormAccessRights.Export);
+    private static string EncodeSubject(FormAccessSubjectOption subject)=>$"{(int)subject.SubjectType}|{subject.SubjectKey}";
+    private static string GetSubjectTypeText(FormAccessSubjectType type)=>type switch{FormAccessSubjectType.Everyone=>"همه کاربران",FormAccessSubjectType.Role=>"نقش سامانه",FormAccessSubjectType.User=>"کاربر مشخص",_=>type.ToString()};
+
+    private FormElementDefinition CreateElement(FormElementType type){string baseKey=type.ToString().ToLowerInvariant();FormElementDefinition element=new(){Type=type,Key=NextKey(baseKey),Label=FormUiText.ElementType(type),Content=IsContentElement(type)?FormUiText.ElementType(type):null};if(RequiresOptions(type))element.Options=[new(){Label="گزینه اول",Value="option_1"},new(){Label="گزینه دوم",Value="option_2"}];if(type is FormElementType.Repeater or FormElementType.Table)element.Children=[new(){Type=FormElementType.Text,Key=NextKey(baseKey+"_item"),Label="فیلد ردیف"}];if(type==FormElementType.Slider){element.Validation.MinimumValue=0;element.Validation.MaximumValue=100;}if(type is FormElementType.CurrentUser or FormElementType.Calculated)element.ReadOnly=true;return element;}
+    private FormElementDefinition CloneElement(FormElementDefinition source)=>new(){Id=Guid.NewGuid(),Key=source.Key,Type=source.Type,Label=source.Label,HelpText=source.HelpText,Placeholder=source.Placeholder,Content=source.Content,DefaultValue=source.DefaultValue,Width=source.Width,Required=source.Required,ReadOnly=source.ReadOnly,Validation=new(){MinimumLength=source.Validation.MinimumLength,MaximumLength=source.Validation.MaximumLength,MinimumValue=source.Validation.MinimumValue,MaximumValue=source.Validation.MaximumValue,Pattern=source.Validation.Pattern,CustomErrorMessage=source.Validation.CustomErrorMessage},Options=source.Options.Select(option=>new FormOptionDefinition{Label=option.Label,Value=option.Value}).ToList(),VisibilityCondition=source.VisibilityCondition is null?null:new(){Logic=source.VisibilityCondition.Logic,Rules=source.VisibilityCondition.Rules.Select(rule=>new FormConditionRuleDefinition{FieldKey=rule.FieldKey,Operator=rule.Operator,Value=rule.Value}).ToList()},CalculationExpression=source.CalculationExpression,Children=source.Children.Select(CloneElement).ToList()};
+    private string NextKey(string baseKey){HashSet<string> used=FormSubmissionValidator.EnumerateElements(schema).Select(element=>element.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);string cleaned=new(baseKey.Where(character=>char.IsAsciiLetterOrDigit(character)||character=='_').ToArray());if(string.IsNullOrWhiteSpace(cleaned)||!char.IsAsciiLetter(cleaned[0]))cleaned="field";string candidate=cleaned;int counter=2;while(used.Contains(candidate))candidate=$"{cleaned}_{counter++}";return candidate;}
+    private FormSectionDefinition? FindSection(Guid id)=>schema.Pages.SelectMany(page=>page.Sections).FirstOrDefault(section=>section.Id==id);
+    private static bool ContainsElement(FormElementDefinition element,Guid id)=>element.Id==id||element.Children.Any(child=>ContainsElement(child,id));
+    private static bool RemoveChild(FormElementDefinition parent,Guid id){if(parent.Children.RemoveAll(child=>child.Id==id)>0)return true;return parent.Children.Any(child=>RemoveChild(child,id));}
+    private static bool RequiresOptions(FormElementType type)=>type is FormElementType.Select or FormElementType.MultiSelect or FormElementType.Radio;
+    private static bool IsContentElement(FormElementType type)=>type is FormElementType.Heading or FormElementType.Paragraph or FormElementType.Divider or FormElementType.Alert;
+    private static string GetElementTitle(FormElementDefinition element)=>IsContentElement(element.Type)?element.Content??FormUiText.ElementType(element.Type):element.Label;
+    private void MarkChanged(){hasUnsavedChanges=true;message=null;}
+    private Task PreviewChanged()=>InvokeAsync(StateHasChanged);
+    private static string ToLocalInput(DateTimeOffset? value)=>value?.ToLocalTime().ToString("O",CultureInfo.InvariantCulture)??string.Empty;
+    private static DateTimeOffset? ParseLocal(string value)=>DateTimeOffset.TryParse(value,CultureInfo.InvariantCulture,DateTimeStyles.AssumeLocal,out DateTimeOffset parsed)?parsed.ToUniversalTime():null;
+
+    private enum BuilderTab{Design,Settings,Access,Preview}
+    private sealed record PaletteItem(FormElementType Type,string Category,string Icon);
+    private sealed class SettingsModel(string title,string? description,bool allowDrafts,bool allowEditAfterSubmit,int? maxSubmissionsPerUser)
+    {
+        public SettingsModel():this(string.Empty,null,true,false,null){}
+        public string Title{get;set;}=title; public string? Description{get;set;}=description; public bool AllowDrafts{get;set;}=allowDrafts; public bool AllowEditAfterSubmit{get;set;}=allowEditAfterSubmit; public int? MaxSubmissionsPerUser{get;set;}=maxSubmissionsPerUser;
+    }
+}

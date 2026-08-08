@@ -8,6 +8,21 @@ retryButton.addEventListener("click", retry);
 const resumeButton = document.getElementById("components-resume-button");
 resumeButton.addEventListener("click", resume);
 
+const secondsToNextAttempt = document.getElementById("components-seconds-to-next-attempt");
+const persianDigits = "۰۱۲۳۴۵۶۷۸۹";
+const localizeAttemptSeconds = () => {
+    const current = secondsToNextAttempt.textContent ?? "";
+    const localized = current.replace(/[0-9]/g, digit => persianDigits[Number(digit)]);
+    if (localized !== current) {
+        secondsToNextAttempt.textContent = localized;
+    }
+};
+new MutationObserver(localizeAttemptSeconds).observe(secondsToNextAttempt, {
+    characterData: true,
+    childList: true,
+    subtree: true
+});
+
 function handleReconnectStateChanged(event) {
     if (event.detail.state === "show") {
         reconnectModal.showModal();

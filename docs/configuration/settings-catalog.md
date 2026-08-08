@@ -19,6 +19,9 @@ IIS یا Secret Store سازمانی خوانده می‌شوند.
 | `Jwt:Issuer` | Security | بله | ترجیحاً URL نهایی HTTPS |
 | `Jwt:Audience` | Security | بله | شناسه API |
 | `Jwt:SigningCertificateThumbprint` | Security | بله | Certificate امضای JWT، جدا از TLS |
+| `Forms:Pdf:License` | Legal/Operations | بله | `Community` فقط در صورت احراز شرایط رسمی؛ در غیر این صورت مجوز خریداری‌شده |
+| `Forms:Pdf:RegularFontPath` | Operations | بله | مسیر فونت عادی محلی PDF نسبت به Content Root یا مسیر مطلق |
+| `Forms:Pdf:BoldFontPath` | Operations | بله | مسیر فونت Bold محلی PDF نسبت به Content Root یا مسیر مطلق |
 | `DevelopmentIdentity:*` | Development | بله | فقط Fake AD؛ در Production ثبت نمی‌شود |
 
 ## Runtime Settings قابل مدیریت
@@ -55,3 +58,5 @@ Failover است و اگر خالی باشد `DomainFqdn` به‌عنوان endpo
   Plan اعمال شود.
 - تغییر `BootstrapAdministrator:Upn` نقش مدیرهای قبلی را حذف نمی‌کند؛ مدیریت Role پس از
   Bootstrap از SQL و پنل مدیریتی انجام می‌شود.
+- مجوز PDF یک اعلام حقوقی/عملیاتی است و از پنل Runtime قابل تغییر نیست. برنامه در Production با
+  مقدار خالی یا `Evaluation` شروع نمی‌شود.

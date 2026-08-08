@@ -1,0 +1,332 @@
+@using System.Globalization
+@using EmpPortal.Application.Localization
+
+<div id="@Id"
+     class="persian-temporal-input @CssClass"
+     role="group"
+     aria-label="@AriaLabel"
+     data-mode="@Mode.ToString().ToLowerInvariant()">
+    @if (Mode != PersianTemporalMode.Time)
+    {
+        <select class="persian-date-part year"
+                aria-label="سال شمسی"
+                value="@SelectedValue(year)"
+                disabled="@Disabled"
+                @onchange="ChangeYearAsync">
+            <option value="">سال</option>
+            @foreach (int candidate in Years)
+            {
+                <option value="@candidate">@PersianDateTimeFormatter.ToPersianDigits(candidate.ToString(CultureInfo.InvariantCulture))</option>
+            }
+        </select>
+        <select class="persian-date-part month"
+                aria-label="ماه شمسی"
+                value="@SelectedValue(month)"
+                disabled="@Disabled"
+                @onchange="ChangeMonthAsync">
+            <option value="">ماه</option>
+            @for (int candidate = 1; candidate <= 12; candidate++)
+            {
+                <option value="@candidate">@PersianDateTimeFormatter.MonthNames[candidate - 1]</option>
+            }
+        </select>
+        <select class="persian-date-part day"
+                aria-label="روز شمسی"
+                value="@SelectedValue(day)"
+                disabled="@Disabled"
+                @onchange="ChangeDayAsync">
+            <option value="">روز</option>
+            @for (int candidate = 1; candidate <= DaysInSelectedMonth; candidate++)
+            {
+                <option value="@candidate">@PersianDateTimeFormatter.ToPersianDigits(candidate.ToString("00", CultureInfo.InvariantCulture))</option>
+            }
+        </select>
+    }
+
+    @if (Mode != PersianTemporalMode.Date)
+    {
+        <span class="persian-time-label" aria-hidden="true">ساعت</span>
+        <select class="persian-date-part time"
+                aria-label="ساعت"
+                value="@SelectedValue(hour)"
+                disabled="@Disabled"
+                @onchange="ChangeHourAsync">
+            @if (Mode == PersianTemporalMode.Time)
+            {
+                <option value="">ساعت</option>
+            }
+            @for (int candidate = 0; candidate < 24; candidate++)
+            {
+                <option value="@candidate">@PersianDateTimeFormatter.ToPersianDigits(candidate.ToString("00", CultureInfo.InvariantCulture))</option>
+            }
+        </select>
+        <span class="time-separator" aria-hidden="true">:</span>
+        <select class="persian-date-part time"
+                aria-label="دقیقه"
+                value="@SelectedValue(minute)"
+                disabled="@Disabled"
+                @onchange="ChangeMinuteAsync">
+            @if (Mode == PersianTemporalMode.Time)
+            {
+                <option value="">دقیقه</option>
+            }
+            @for (int candidate = 0; candidate < 60; candidate++)
+            {
+                <option value="@candidate">@PersianDateTimeFormatter.ToPersianDigits(candidate.ToString("00", CultureInfo.InvariantCulture))</option>
+            }
+        </select>
+    }
+
+    @if (!Disabled && HasValue)
+    {
+        <button type="button" class="persian-date-clear" aria-label="پاک‌کردن تاریخ و زمان" @onclick="ClearAsync">×</button>
+    }
+</div>
+
+@if (!string.IsNullOrWhiteSpace(validationMessage))
+{
+    <small class="persian-date-error" role="alert">@validationMessage</small>
+}
+
+@code {
+    [Parameter]
+    public string? Id { get; set; }
+
+    [Parameter]
+    public string? AriaLabel { get; set; }
+
+    [Parameter]
+    public string? CssClass { get; set; }
+
+    [Parameter]
+    public string? Value { get; set; }
+
+    [Parameter]
+    public EventCallback<string> ValueChanged { get; set; }
+
+    [Parameter]
+    public PersianTemporalMode Mode { get; set; }
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
+    public int YearsBack { get; set; } = 100;
+
+    [Parameter]
+    public int YearsForward { get; set; } = 20;
+
+    private int? year;
+    private int? month;
+    private int? day;
+    private int? hour;
+    private int? minute;
+    private string? loadedValue;
+    private string? validationMessage;
+
+    private bool HasValue => Mode == PersianTemporalMode.Time
+        ? hour.HasValue || minute.HasValue
+        : year.HasValue || month.HasValue || day.HasValue;
+
+    private IEnumerable<int> Years
+    {
+        get
+        {
+            int currentYear = PersianDateTimeFormatter.GetCurrentYear();
+            int minimum = currentYear - Math.Clamp(YearsBack, 0, 20);
+            int maximum = currentYear + Math.Clamp(YearsForward, 0, 2);
+            if (year.HasValue)
+            {
+                minimum = Math.Min(minimum, year.Value);
+                maximum = Math.Max(maximum, year.Value);
+            }
+
+            return Enumerable.Range(minimum, maximum - minimum + 1).Reverse();
+        }
+    }
+
+    private int DaysInSelectedMonth
+    {
+        get
+        {
+            if (!year.HasValue || !month.HasValue)
+            {
+                return 31;
+            }
+
+            try
+            {
+                return PersianDateTimeFormatter.GetDaysInMonth(year.Value, month.Value);
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                return 31;
+            }
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        string normalizedValue = Value?.Trim() ?? string.Empty;
+        if (string.Equals(normalizedValue, loadedValue, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        loadedValue = normalizedValue;
+        validationMessage = null;
+        year = month = day = null;
+        hour = minute = null;
+
+        if (Mode == PersianTemporalMode.Time)
+        {
+            if (PersianDateTimeFormatter.TryParseStoredTime(normalizedValue, out TimeOnly time))
+            {
+                hour = time.Hour;
+                minute = time.Minute;
+            }
+
+            return;
+        }
+
+        if (Mode == PersianTemporalMode.DateTime)
+        {
+            hour = 0;
+            minute = 0;
+        }
+
+        if (!PersianDateTimeFormatter.TryParseStoredDateTime(normalizedValue, out DateTimeOffset parsed))
+        {
+            return;
+        }
+
+        PersianDateParts parts = PersianDateTimeFormatter.GetParts(parsed.LocalDateTime);
+        year = parts.Year;
+        month = parts.Month;
+        day = parts.Day;
+        if (Mode == PersianTemporalMode.DateTime)
+        {
+            hour = parts.Hour;
+            minute = parts.Minute;
+        }
+    }
+
+    private async Task ChangeYearAsync(ChangeEventArgs args)
+    {
+        year = ParsePart(args.Value);
+        NormalizeDay();
+        await CommitAsync();
+    }
+
+    private async Task ChangeMonthAsync(ChangeEventArgs args)
+    {
+        month = ParsePart(args.Value);
+        NormalizeDay();
+        await CommitAsync();
+    }
+
+    private async Task ChangeDayAsync(ChangeEventArgs args)
+    {
+        day = ParsePart(args.Value);
+        await CommitAsync();
+    }
+
+    private async Task ChangeHourAsync(ChangeEventArgs args)
+    {
+        hour = ParsePart(args.Value);
+        await CommitAsync();
+    }
+
+    private async Task ChangeMinuteAsync(ChangeEventArgs args)
+    {
+        minute = ParsePart(args.Value);
+        await CommitAsync();
+    }
+
+    private async Task CommitAsync()
+    {
+        validationMessage = null;
+        if (Mode == PersianTemporalMode.Time)
+        {
+            if (!hour.HasValue && !minute.HasValue)
+            {
+                await PublishAsync(string.Empty);
+                return;
+            }
+
+            if (!hour.HasValue || !minute.HasValue)
+            {
+                validationMessage = "ساعت و دقیقه را کامل انتخاب کنید.";
+                return;
+            }
+
+            await PublishAsync($"{hour.Value:00}:{minute.Value:00}");
+            return;
+        }
+
+        if (!year.HasValue && !month.HasValue && !day.HasValue)
+        {
+            await PublishAsync(string.Empty);
+            return;
+        }
+
+        if (!year.HasValue || !month.HasValue || !day.HasValue)
+        {
+            validationMessage = "سال، ماه و روز را کامل انتخاب کنید.";
+            return;
+        }
+
+        int selectedHour = Mode == PersianTemporalMode.DateTime ? hour ?? 0 : 0;
+        int selectedMinute = Mode == PersianTemporalMode.DateTime ? minute ?? 0 : 0;
+        if (!PersianDateTimeFormatter.TryCreateLocalDateTime(
+                year.Value,
+                month.Value,
+                day.Value,
+                selectedHour,
+                selectedMinute,
+                out DateTimeOffset parsed))
+        {
+            validationMessage = "تاریخ انتخاب‌شده معتبر نیست.";
+            return;
+        }
+
+        string storedValue = Mode == PersianTemporalMode.Date
+            ? parsed.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            : parsed.ToString("O", CultureInfo.InvariantCulture);
+        await PublishAsync(storedValue);
+    }
+
+    private async Task ClearAsync()
+    {
+        year = month = day = null;
+        hour = minute = Mode == PersianTemporalMode.DateTime ? 0 : null;
+        validationMessage = null;
+        await PublishAsync(string.Empty);
+    }
+
+    private async Task PublishAsync(string value)
+    {
+        loadedValue = value;
+        await ValueChanged.InvokeAsync(value);
+    }
+
+    private void NormalizeDay()
+    {
+        if (day.HasValue && day.Value > DaysInSelectedMonth)
+        {
+            day = DaysInSelectedMonth;
+        }
+    }
+
+    private static int? ParsePart(object? value) =>
+        int.TryParse(
+            PersianDateTimeFormatter.NormalizeDigits(value?.ToString()),
+            NumberStyles.Integer,
+            CultureInfo.InvariantCulture,
+            out int parsed)
+            ? parsed
+            : null;
+
+    private static string SelectedValue(int? value) =>
+        value?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+}

@@ -1,0 +1,166 @@
+.coming-soon-panel {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.coming-soon-heading {
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.coming-soon-badge {
+    background: #f2f4f7;
+    border: 1px solid #e4e7ec;
+    border-radius: 999px;
+    color: #475467;
+    flex: 0 0 auto;
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .02em;
+    padding: .45rem .85rem;
+}
+
+.coming-soon-card {
+    align-items: stretch;
+    background:
+        radial-gradient(circle at 100% 0, rgba(70, 95, 255, .08), transparent 22rem),
+        #fff;
+    border: 1px solid #e4e7ec;
+    border-radius: 1.35rem;
+    box-shadow: 0 .75rem 2rem rgba(16, 24, 40, .05);
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: minmax(12rem, .9fr) minmax(0, 1.4fr);
+    overflow: hidden;
+    padding: clamp(1.25rem, 3vw, 2rem);
+    position: relative;
+}
+
+.coming-soon-card::before {
+    background: linear-gradient(90deg, #465fff, #7592ff);
+    content: "";
+    height: .24rem;
+    inset: 0 0 auto;
+    position: absolute;
+}
+
+.coming-soon-visual {
+    align-items: center;
+    display: grid;
+    justify-items: center;
+    min-height: 14rem;
+    place-content: center;
+    position: relative;
+}
+
+.coming-soon-orb {
+    background: radial-gradient(circle, rgba(70, 95, 255, .18), transparent 68%);
+    border-radius: 50%;
+    height: 12rem;
+    position: absolute;
+    width: 12rem;
+}
+
+.coming-soon-icon {
+    align-items: center;
+    background: #fff;
+    border: 1px solid #e4e7ec;
+    border-radius: 1.25rem;
+    box-shadow: 0 1rem 2.5rem rgba(70, 95, 255, .12);
+    color: #465fff;
+    display: inline-flex;
+    height: 5.5rem;
+    justify-content: center;
+    position: relative;
+    width: 5.5rem;
+    z-index: 1;
+}
+
+.coming-soon-icon ::deep svg {
+    fill: none;
+    height: 2.4rem;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.7;
+    width: 2.4rem;
+}
+
+.coming-soon-copy {
+    display: grid;
+    gap: .85rem;
+    align-content: center;
+}
+
+.coming-soon-copy h2 {
+    color: #101828;
+    font-size: clamp(1.15rem, 2.4vw, 1.45rem);
+    margin: 0;
+}
+
+.coming-soon-copy p,
+.coming-soon-copy li {
+    color: #667085;
+    line-height: 1.85;
+    margin: 0;
+}
+
+.coming-soon-copy ul {
+    display: grid;
+    gap: .45rem;
+    list-style: none;
+    margin: .25rem 0 0;
+    padding: 0;
+}
+
+.coming-soon-copy li {
+    background: #f9fafb;
+    border: 1px solid #f2f4f7;
+    border-radius: .8rem;
+    padding: .7rem .9rem;
+}
+
+.coming-soon-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+    margin-top: .35rem;
+}
+
+.tone-violet .coming-soon-card::before,
+.tone-violet .coming-soon-icon { color: #6938ef; }
+.tone-violet .coming-soon-orb { background: radial-gradient(circle, rgba(105, 56, 239, .18), transparent 68%); }
+
+.tone-teal .coming-soon-card::before,
+.tone-teal .coming-soon-icon { color: #0e9384; }
+.tone-teal .coming-soon-orb { background: radial-gradient(circle, rgba(14, 147, 132, .18), transparent 68%); }
+
+.tone-amber .coming-soon-card::before,
+.tone-amber .coming-soon-icon { color: #dc6803; }
+.tone-amber .coming-soon-orb { background: radial-gradient(circle, rgba(220, 104, 3, .18), transparent 68%); }
+
+.tone-rose .coming-soon-card::before,
+.tone-rose .coming-soon-icon { color: #e31b54; }
+.tone-rose .coming-soon-orb { background: radial-gradient(circle, rgba(227, 27, 84, .16), transparent 68%); }
+
+.tone-slate .coming-soon-card::before,
+.tone-slate .coming-soon-icon { color: #475467; }
+.tone-slate .coming-soon-orb { background: radial-gradient(circle, rgba(71, 84, 103, .16), transparent 68%); }
+
+.tone-green .coming-soon-card::before,
+.tone-green .coming-soon-icon { color: #039855; }
+.tone-green .coming-soon-orb { background: radial-gradient(circle, rgba(3, 152, 85, .16), transparent 68%); }
+
+.tone-indigo .coming-soon-card::before,
+.tone-indigo .coming-soon-icon { color: #3538cd; }
+.tone-indigo .coming-soon-orb { background: radial-gradient(circle, rgba(53, 56, 205, .16), transparent 68%); }
+
+@media (max-width: 52rem) {
+    .coming-soon-card {
+        grid-template-columns: 1fr;
+    }
+
+    .coming-soon-visual {
+        min-height: 10rem;
+    }
+}

@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="ClosedXML" />
     <ProjectReference Include="..\EmpPortal.Application\EmpPortal.Application.csproj" />
     <ProjectReference Include="..\EmpPortal.Domain\EmpPortal.Domain.csproj" />
   </ItemGroup>
@@ -13,6 +14,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="QuestPDF" />
     <PackageReference Include="System.DirectoryServices.Protocols" />
   </ItemGroup>
 

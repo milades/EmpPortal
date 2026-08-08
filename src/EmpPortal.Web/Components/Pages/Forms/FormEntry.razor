@@ -1,0 +1,277 @@
+@page "/forms/{Slug}"
+@attribute [Authorize]
+
+@using System.Text.Json
+@using EmpPortal.Application.Forms
+@using EmpPortal.Application.Forms.Schema
+@using EmpPortal.Domain.Forms
+@using EmpPortal.Web.Components.Forms
+@using EmpPortal.Web.Security
+@using Microsoft.AspNetCore.Authorization
+
+@inject IFormSubmissionService FormSubmissionService
+@inject FormActorFactory ActorFactory
+
+<PageTitle>@(runtime?.Schema.Title ?? "فرم") | پرتال کارمندی</PageTitle>
+
+<section class="dynamic-form-page" aria-labelledby="dynamic-form-title">
+    @if (isLoading)
+    {
+        <div class="loading-panel" role="status"><span class="spinner-border spinner-border-sm"></span> در حال دریافت فرم…</div>
+    }
+    else if (runtime is null)
+    {
+        <div class="empty-state">
+            <h1>فرم در دسترس نیست</h1>
+            <p>فرم موردنظر وجود ندارد، هنوز فعال نشده یا شما مجوز تکمیل آن را ندارید.</p>
+            <a class="secondary-button" href="/forms">بازگشت به ثبت‌نام‌ها</a>
+        </div>
+    }
+    else
+    {
+        <header class="dynamic-form-header">
+            <div>
+                <a class="back-link" href="/forms">← ثبت‌نام‌ها و رویدادها</a>
+                <span class="eyebrow">فرم سازمانی · نسخه @runtime.VersionNumber</span>
+                <h1 id="dynamic-form-title">@runtime.Schema.Title</h1>
+                @if (!string.IsNullOrWhiteSpace(runtime.Schema.Description))
+                {
+                    <p>@runtime.Schema.Description</p>
+                }
+            </div>
+            @if (!string.IsNullOrWhiteSpace(trackingCode))
+            {
+                <div class="tracking-chip"><small>کد رهگیری</small><strong dir="ltr">@trackingCode</strong></div>
+            }
+        </header>
+
+        @if (!string.IsNullOrWhiteSpace(statusMessage))
+        {
+            <div class="form-notice @statusClass" role="status">@statusMessage</div>
+        }
+
+        @if (isSubmitted && !runtime.AllowEditAfterSubmit)
+        {
+            <div class="submission-success">
+                <span class="success-mark">✓</span>
+                <div><h2>پاسخ شما با موفقیت ثبت شد</h2><p>کد رهگیری خود را برای پیگیری نگه دارید.</p></div>
+            </div>
+        }
+        else
+        {
+            <div class="dynamic-form-surface">
+                @foreach (FormPageDefinition formPage in runtime.Schema.Pages)
+                {
+                    <section class="dynamic-page-section" aria-labelledby="@($"form-page-{formPage.Id:N}")">
+                        <header>
+                            <h2 id="@($"form-page-{formPage.Id:N}")">@formPage.Title</h2>
+                            @if (!string.IsNullOrWhiteSpace(formPage.Description))
+                            {
+                                <p>@formPage.Description</p>
+                            }
+                        </header>
+                        @foreach (FormSectionDefinition formSection in formPage.Sections)
+                        {
+                            <section class="dynamic-section">
+                                @if (!string.IsNullOrWhiteSpace(formSection.Title))
+                                {
+                                    <h3>@formSection.Title</h3>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(formSection.Description))
+                                {
+                                    <p class="section-description">@formSection.Description</p>
+                                }
+                                <div class="dynamic-grid">
+                                    @foreach (FormElementDefinition element in formSection.Elements)
+                                    {
+                                        <DynamicFormField Element="element" Values="values" Errors="validationErrors" NotifyChanged="ValuesChanged" />
+                                    }
+                                </div>
+                            </section>
+                        }
+                    </section>
+                }
+
+                @if (validationErrors.Count > 0)
+                {
+                    <div class="validation-summary" role="alert">
+                        <strong>لطفاً موارد مشخص‌شده را اصلاح کنید.</strong>
+                        <span>@validationErrors.Sum(item => item.Value.Length) خطای اعتبارسنجی وجود دارد.</span>
+                    </div>
+                }
+
+                <footer class="dynamic-form-actions">
+                    @if (runtime.AllowDrafts && !isSubmitted)
+                    {
+                        <AsyncActionButton CssClass="secondary-button"
+                                           Disabled="@isSaving"
+                                           LoadingText="در حال ذخیره پیش‌نویس…"
+                                           OnClick="SaveDraftAsync">ذخیره پیش‌نویس</AsyncActionButton>
+                    }
+                    <AsyncActionButton CssClass="primary-button"
+                                       Disabled="@(isSaving || !canSubmit)"
+                                       LoadingText="در حال ثبت نهایی…"
+                                       OnClick="SubmitAsync">@runtime.Schema.SubmitButtonText</AsyncActionButton>
+                </footer>
+            </div>
+        }
+    }
+</section>
+
+@code {
+    [Parameter]
+    public string Slug { get; set; } = string.Empty;
+
+    private readonly Dictionary<string, JsonElement> values = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string[]> validationErrors = new(StringComparer.OrdinalIgnoreCase);
+    private FormRuntimeData? runtime;
+    private Guid? submissionId;
+    private byte[]? rowVersion;
+    private string? trackingCode;
+    private bool isLoading = true;
+    private bool isSaving;
+    private bool canSubmit;
+    private bool isSubmitted;
+    private string? statusMessage;
+    private string statusClass = string.Empty;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        isLoading = true;
+        FormActor actor = await ActorFactory.CreateAsync();
+        runtime = await FormSubmissionService.GetRuntimeAsync(Slug, actor);
+        values.Clear();
+        validationErrors.Clear();
+        if (runtime is not null)
+        {
+            foreach ((string key, JsonElement value) in runtime.ExistingValues)
+            {
+                values[key] = value.Clone();
+            }
+
+            ApplyDefaults(runtime.Schema);
+            RefreshValidation(showErrors: false);
+            submissionId = runtime.ExistingSubmissionId;
+            rowVersion = runtime.ExistingSubmissionRowVersion;
+            isSubmitted = runtime.ExistingSubmissionStatus == FormSubmissionStatus.Submitted;
+        }
+
+        isLoading = false;
+    }
+
+    private Task ValuesChanged()
+    {
+        statusMessage = null;
+        RefreshValidation(showErrors: true);
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private Task SaveDraftAsync() => SaveAsync(finalize: false);
+
+    private Task SubmitAsync() => SaveAsync(finalize: true);
+
+    private async Task SaveAsync(bool finalize)
+    {
+        if (runtime is null || isSaving)
+        {
+            return;
+        }
+
+        if (finalize && !RefreshValidation(showErrors: true))
+        {
+            statusClass = "error";
+            statusMessage = "برای ثبت نهایی، خطاهای مشخص‌شده را اصلاح کنید.";
+            return;
+        }
+
+        isSaving = true;
+        statusMessage = null;
+        validationErrors.Clear();
+        try
+        {
+            FormActor actor = await ActorFactory.CreateAsync();
+            SaveSubmissionRequest request = new(
+                submissionId,
+                runtime.FormVersionId,
+                new Dictionary<string, JsonElement>(values, StringComparer.OrdinalIgnoreCase),
+                rowVersion);
+            SubmissionResult result = finalize
+                ? await FormSubmissionService.SubmitAsync(request, actor)
+                : await FormSubmissionService.SaveDraftAsync(request, actor);
+            if (result.Errors.Count > 0)
+            {
+                canSubmit = false;
+                foreach (IGrouping<string, FormSchemaValidationError> group in result.Errors.GroupBy(
+                             error => error.Path,
+                             StringComparer.OrdinalIgnoreCase))
+                {
+                    validationErrors[group.Key] = group.Select(error => error.Message).ToArray();
+                }
+
+                statusClass = "error";
+                statusMessage = "فرم ثبت نشد؛ اطلاعات ورودی نیاز به اصلاح دارد.";
+                return;
+            }
+
+            submissionId = result.SubmissionId;
+            rowVersion = result.RowVersion;
+            trackingCode = result.TrackingCode;
+            isSubmitted = result.Status == FormSubmissionStatus.Submitted;
+            statusClass = "success";
+            statusMessage = finalize
+                ? "اطلاعات با موفقیت ثبت نهایی شد."
+                : "پیش‌نویس شما ذخیره شد.";
+        }
+        catch (FormConcurrencyException)
+        {
+            statusClass = "error";
+            statusMessage = "این پاسخ هم‌زمان در پنجره دیگری تغییر کرده است؛ صفحه را بازآوری کنید.";
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or UnauthorizedAccessException)
+        {
+            statusClass = "error";
+            statusMessage = exception.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private bool RefreshValidation(bool showErrors)
+    {
+        if (runtime is null)
+        {
+            canSubmit = false;
+            return false;
+        }
+
+        FormSchemaValidationResult validation = FormSubmissionValidator.Validate(runtime.Schema, values);
+        canSubmit = validation.IsValid;
+        validationErrors.Clear();
+        if (showErrors)
+        {
+            foreach (IGrouping<string, FormSchemaValidationError> group in validation.Errors.GroupBy(
+                         error => error.Path,
+                         StringComparer.OrdinalIgnoreCase))
+            {
+                validationErrors[group.Key] = group.Select(error => error.Message).ToArray();
+            }
+        }
+
+        return canSubmit;
+    }
+
+    private void ApplyDefaults(FormSchemaDefinition schema)
+    {
+        foreach (FormElementDefinition element in FormSubmissionValidator.EnumerateElements(schema))
+        {
+            if (!values.ContainsKey(element.Key) && !string.IsNullOrWhiteSpace(element.DefaultValue) &&
+                element.Type is not FormElementType.Heading and not FormElementType.Paragraph and
+                    not FormElementType.Divider and not FormElementType.Alert)
+            {
+                values[element.Key] = JsonSerializer.SerializeToElement(element.DefaultValue);
+            }
+        }
+    }
+}

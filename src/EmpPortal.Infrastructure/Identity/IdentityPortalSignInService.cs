@@ -159,7 +159,8 @@ public sealed class IdentityPortalSignInService(
         Claim[] additionalClaims =
         [
             new Claim(SessionIdClaimType, session.Id.ToString("D")),
-            new Claim(ClaimTypes.AuthenticationMethod, authenticationMethod)
+            new Claim(ClaimTypes.AuthenticationMethod, authenticationMethod),
+            new Claim("display_name", identity.DisplayName)
         ];
 
         await signInManager.SignInWithClaimsAsync(user, properties, additionalClaims);
@@ -189,12 +190,23 @@ public sealed class IdentityPortalSignInService(
 
     private async Task<IdentityResult> EnsureRolesAsync(ApplicationUser user, string upn)
     {
-        IdentityResult employeeRoleResult = await EnsureRoleExistsAsync(
-            PortalRoles.Employee,
-            "کاربر عادی پرتال");
-        if (!employeeRoleResult.Succeeded)
+        (string Name, string Description)[] portalRoles =
+        [
+            (PortalRoles.Employee, "کاربر عادی پرتال"),
+            (PortalRoles.SystemAdministrator, "مدیر کل سامانه"),
+            (PortalRoles.FormAdministrator, "مدیر فرم‌ها"),
+            (PortalRoles.FormDesigner, "طراح فرم"),
+            (PortalRoles.FormPublisher, "منتشرکننده فرم"),
+            (PortalRoles.SubmissionViewer, "مشاهده‌کننده پاسخ فرم‌ها"),
+            (PortalRoles.ReportExporter, "دریافت‌کننده خروجی گزارش‌ها")
+        ];
+        foreach ((string roleName, string description) in portalRoles)
         {
-            return employeeRoleResult;
+            IdentityResult roleResult = await EnsureRoleExistsAsync(roleName, description);
+            if (!roleResult.Succeeded)
+            {
+                return roleResult;
+            }
         }
 
         if (!await userManager.IsInRoleAsync(user, PortalRoles.Employee))
@@ -212,14 +224,6 @@ public sealed class IdentityPortalSignInService(
         if (!string.Equals(upn, bootstrapUpn, StringComparison.OrdinalIgnoreCase))
         {
             return IdentityResult.Success;
-        }
-
-        IdentityResult administratorRoleResult = await EnsureRoleExistsAsync(
-            PortalRoles.SystemAdministrator,
-            "مدیر کل سامانه");
-        if (!administratorRoleResult.Succeeded)
-        {
-            return administratorRoleResult;
         }
 
         return await userManager.IsInRoleAsync(user, PortalRoles.SystemAdministrator)

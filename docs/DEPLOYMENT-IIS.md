@@ -64,6 +64,8 @@ Copy-Item `
   `LocalMachine\My`.
 - `Jwt`: آدرس HTTPS پورتال به‌عنوان Issuer، شناسه API به‌عنوان Audience و Thumbprint گواهی مستقل
   امضای JWT در `LocalMachine\My`.
+- `Forms:Pdf`: نوع مجوز واجدشرایط QuestPDF (`Community`، `Professional` یا `Enterprise`) با تأیید
+  حقوقی/تدارکات و مسیر دو فونت محلی. Production با مقدار خالی یا `Evaluation` عمداً Fail-fast می‌شود.
 
 در Production کاربر آزمایشی `admin@empportal.test` و پذیرش Password دلخواه اصلاً ثبت نمی‌شوند.
 ورود دستی فقط با UPN و Password واقعی Active Directory و از طریق LDAPS اعتبارسنجی می‌شود.
@@ -114,6 +116,7 @@ Restart-WebAppPool -Name 'EmpPortal'
 3. صدور JWT از endpoint محافظت‌شده و فراخوانی `/api/me` آزموده شود.
 4. Disabled کردن حساب آزمایشی، رد Cookie/JWT و Revoke نشست‌ها تأیید شود.
 5. Audit ورود موفق/ناموفق، خروج و تغییر تنظیمات در SQL کنترل شود.
+6. یک فرم آزمایشی ساخته و منتشر شود؛ ثبت پاسخ، گزارش، Excel و PDF آن با نقش‌های مجاز کنترل شوند.
 
 برای Rollback، binding IIS به پوشه Artifact قبلی برمی‌گردد. Rollback دیتابیس فقط مطابق
 اسکریپت و Backup تأییدشده DBA انجام می‌شود؛ Downgrade خودکار Migration وجود ندارد.

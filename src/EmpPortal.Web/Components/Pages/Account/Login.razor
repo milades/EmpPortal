@@ -46,10 +46,9 @@
                   method="post"
                   OnValidSubmit="ManualLoginAsync"
                   FormName="manual-login"
+                  data-static-submit-loading="true"
                   Enhance="false">
         <DataAnnotationsValidator />
-        <ValidationSummary class="validation-summary" role="alert" />
-
         <div class="field-group">
             <label for="upn">نام کاربری سازمانی</label>
             <div class="input-shell">
@@ -61,6 +60,8 @@
                 </span>
                 <InputText id="upn"
                            class="form-input"
+                           type="email"
+                           required
                            @bind-Value="Input.Upn"
                            autocomplete="username"
                            inputmode="email"
@@ -85,6 +86,7 @@
                 <InputText id="password"
                            class="form-input"
                            type="password"
+                           required
                            @bind-Value="Input.Password"
                            autocomplete="current-password"
                            aria-required="true"
@@ -93,7 +95,7 @@
             <ValidationMessage For="() => Input.Password" class="field-error" />
         </div>
 
-        <button class="submit-button" type="submit">ورود دستی</button>
+        <button class="submit-button" type="submit" data-loading-text="در حال بررسی اطلاعات…">ورود دستی</button>
         </EditForm>
     }
 </section>

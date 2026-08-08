@@ -1,0 +1,39 @@
+@page "/services/{ServiceKey}"
+@attribute [Authorize]
+
+@using EmpPortal.Web.Services
+@using Microsoft.AspNetCore.Authorization
+
+@inject NavigationManager NavigationManager
+
+@if (service is null)
+{
+    <section class="empty-state">
+        <h2>خدمت یافت نشد</h2>
+        <p>مسیر درخواست‌شده در فهرست خدمات پرتال وجود ندارد.</p>
+        <a class="primary-button" href="/">بازگشت به داشبورد</a>
+    </section>
+}
+else
+{
+    <PageTitle>@service.Title | پرتال کارمندی</PageTitle>
+    <ComingSoonPanel Service="service">
+        <PortalServiceIcon ServiceKey="@service.Key" />
+    </ComingSoonPanel>
+}
+
+@code {
+    [Parameter]
+    public string ServiceKey { get; set; } = string.Empty;
+
+    private PortalServiceDefinition? service;
+
+    protected override void OnParametersSet()
+    {
+        service = PortalServiceCatalog.Find(ServiceKey);
+        if (service?.IsAvailable == true)
+        {
+            NavigationManager.NavigateTo(service.Href, replace: true);
+        }
+    }
+}

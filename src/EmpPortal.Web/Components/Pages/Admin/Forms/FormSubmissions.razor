@@ -1,0 +1,86 @@
+@page "/admin/forms/{FormId:guid}/submissions"
+@attribute [Authorize]
+
+@using System.Globalization
+@using EmpPortal.Application.Forms
+@using EmpPortal.Application.Localization
+@using EmpPortal.Domain.Forms
+@using EmpPortal.Web.Components.Forms
+@using EmpPortal.Web.Security
+@using Microsoft.AspNetCore.Authorization
+
+@inject IFormReportingService FormReportingService
+@inject FormActorFactory ActorFactory
+
+<PageTitle>گزارش پاسخ‌های فرم | پرتال کارمندی</PageTitle>
+
+<section class="submissions-page" aria-labelledby="submissions-title">
+    <header class="page-heading form-admin-heading"><div><a class="back-link" href="/admin/forms">← فرم‌ها</a><span class="eyebrow">گزارش فرم</span><h1 id="submissions-title">پاسخ‌های ثبت‌شده</h1><p>جست‌وجو، مشاهده جزئیات و دریافت خروجی استاندارد Excel.</p></div><a class="primary-button" href="@ExcelUrl" data-enhance-nav="false">دریافت Excel</a></header>
+
+    <div class="report-filters">
+        <label>جست‌وجو<input class="form-control polished-input" placeholder="کد رهگیری، نام یا UPN" @bind="search" @bind:event="oninput" /></label>
+        <label>وضعیت<select class="form-select polished-input" @bind="statusValue"><option value="">همه</option><option value="0">پیش‌نویس</option><option value="1">ثبت نهایی</option><option value="2">پس‌گرفته‌شده</option></select></label>
+        <label>از تاریخ<PersianTemporalInput AriaLabel="از تاریخ" Mode="PersianTemporalMode.Date" Value="@fromDate" ValueChanged="SetFromDateAsync" YearsBack="10" YearsForward="1" /></label>
+        <label>تا تاریخ<PersianTemporalInput AriaLabel="تا تاریخ" Mode="PersianTemporalMode.Date" Value="@toDate" ValueChanged="SetToDateAsync" YearsBack="10" YearsForward="1" /></label>
+        <AsyncActionButton CssClass="secondary-button" Disabled="@isLoading" LoadingText="در حال اعمال…" OnClick="ApplyFiltersAsync">اعمال فیلتر</AsyncActionButton>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <div class="form-notice error" role="alert">@message</div>
+    }
+    @if (isLoading)
+    {
+        <div class="loading-panel" role="status">در حال دریافت پاسخ‌ها…</div>
+    }
+    else if (result is null || result.Items.Count == 0)
+    {
+        <div class="empty-state"><h2>پاسخی یافت نشد</h2><p>برای این فیلتر هنوز داده‌ای ثبت نشده است.</p></div>
+    }
+    else
+    {
+        <div class="report-table-wrap"><table class="report-table"><thead><tr><th>کد رهگیری</th><th>کاربر</th><th>وضعیت</th><th>زمان ایجاد</th><th>ثبت نهایی</th><th></th></tr></thead><tbody>
+            @foreach (SubmissionSummary item in result.Items)
+            {
+                <tr><td><code dir="ltr">@item.TrackingCode</code></td><td><strong>@item.UserDisplayName</strong><small dir="ltr">@item.UserUpn</small></td><td><span class="status-badge @item.Status.ToString().ToLowerInvariant()">@FormUiText.Submission(item.Status)</span></td><td>@FormatDate(item.CreatedAtUtc)</td><td>@FormatDate(item.SubmittedAtUtc)</td><td><a class="text-button" href="@($"/admin/submissions/{item.Id}")">جزئیات</a></td></tr>
+            }
+        </tbody></table></div>
+        <footer class="pagination"><span>نمایش @result.Items.Count از @result.TotalCount پاسخ</span><div><AsyncActionButton CssClass="secondary-button small" Disabled="@(isLoading || result.Page <= 1)" LoadingText="در حال دریافت…" OnClick="PreviousPageAsync">قبلی</AsyncActionButton><span>صفحه @result.Page از @TotalPages</span><AsyncActionButton CssClass="secondary-button small" Disabled="@(isLoading || result.Page >= TotalPages)" LoadingText="در حال دریافت…" OnClick="NextPageAsync">بعدی</AsyncActionButton></div></footer>
+    }
+</section>
+
+@code {
+    [Parameter] public Guid FormId { get; set; }
+    private PagedResult<SubmissionSummary>? result;
+    private int page = 1;
+    private const int PageSize = 25;
+    private string? search;
+    private string statusValue = string.Empty;
+    private string fromDate = string.Empty;
+    private string toDate = string.Empty;
+    private bool isLoading = true;
+    private string? message;
+    private int TotalPages => result is null ? 1 : Math.Max(1, (int)Math.Ceiling(result.TotalCount / (double)result.PageSize));
+    private string ExcelUrl => $"/api/forms/{FormId}/submissions/export.xlsx?search={Uri.EscapeDataString(search ?? string.Empty)}&status={statusValue}&from={fromDate}&to={toDate}";
+
+    protected override async Task OnParametersSetAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        isLoading=true; message=null;
+        try{result=await FormReportingService.GetSubmissionsAsync(FormId,BuildQuery(),await ActorFactory.CreateAsync());}
+        catch(Exception exception) when(exception is UnauthorizedAccessException or KeyNotFoundException){message=exception.Message;result=null;}
+        finally{isLoading=false;}
+    }
+
+    private SubmissionQuery BuildQuery()=>new(page,PageSize,search,TryStatus(),ParseStart(fromDate),ParseEnd(toDate));
+    private FormSubmissionStatus? TryStatus()=>int.TryParse(statusValue,out int value)&&Enum.IsDefined((FormSubmissionStatus)value)?(FormSubmissionStatus)value:null;
+    private static DateTimeOffset? ParseStart(string value)=>DateOnly.TryParse(value,CultureInfo.InvariantCulture,DateTimeStyles.None,out DateOnly date)?new DateTimeOffset(date.ToDateTime(TimeOnly.MinValue),TimeZoneInfo.Local.GetUtcOffset(date.ToDateTime(TimeOnly.MinValue))).ToUniversalTime():null;
+    private static DateTimeOffset? ParseEnd(string value)=>DateOnly.TryParse(value,CultureInfo.InvariantCulture,DateTimeStyles.None,out DateOnly date)?new DateTimeOffset(date.ToDateTime(TimeOnly.MaxValue),TimeZoneInfo.Local.GetUtcOffset(date.ToDateTime(TimeOnly.MaxValue))).ToUniversalTime():null;
+    private static string FormatDate(DateTimeOffset? value)=>PersianDateTimeFormatter.FormatDateTime(value);
+    private Task SetFromDateAsync(string value){fromDate=value;return Task.CompletedTask;}
+    private Task SetToDateAsync(string value){toDate=value;return Task.CompletedTask;}
+    private async Task ApplyFiltersAsync(){page=1;await LoadAsync();}
+    private async Task PreviousPageAsync(){if(page>1){page--;await LoadAsync();}}
+    private async Task NextPageAsync(){if(page<TotalPages){page++;await LoadAsync();}}
+}

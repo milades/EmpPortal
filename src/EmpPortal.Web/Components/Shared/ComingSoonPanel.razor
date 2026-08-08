@@ -1,0 +1,44 @@
+@using EmpPortal.Web.Services
+
+<section class="coming-soon-panel tone-@Service.Tone.ToString().ToLowerInvariant()" aria-labelledby="service-title">
+    <header class="page-heading coming-soon-heading">
+        <div>
+            <a class="back-link" href="/">← بازگشت به داشبورد</a>
+            <span class="eyebrow">خدمات الکترونیک کارکنان</span>
+            <h1 id="service-title">@Service.Title</h1>
+            <p>@Service.LongDescription</p>
+        </div>
+        <span class="coming-soon-badge" aria-label="وضعیت سرویس">به‌زودی</span>
+    </header>
+
+    <article class="coming-soon-card">
+        <div class="coming-soon-visual" aria-hidden="true">
+            <span class="coming-soon-orb"></span>
+            <span class="coming-soon-icon">@ChildContent</span>
+        </div>
+        <div class="coming-soon-copy">
+            <h2>این بخش به‌زودی فعال می‌شود</h2>
+            <p>
+                ساختار منو و مسیر دسترسی از هم‌اکنون در پرتال قرار گرفته است تا فضای خدمات جامع سازمان مشخص باشد.
+                پیاده‌سازی کامل این سرویس در فازهای بعدی انجام می‌شود.
+            </p>
+            <ul>
+                <li>امضای بصری و تجربه کاربری هم‌تراز با سایر بخش‌های پرتال</li>
+                <li>دسترسی امن از شبکه داخلی سازمان</li>
+                <li>یکپارچگی با هویت سازمانی و نقش‌های دسترسی</li>
+            </ul>
+            <div class="coming-soon-actions">
+                <a class="primary-button" href="/">بازگشت به داشبورد</a>
+                <a class="secondary-button" href="/forms">ثبت‌نام‌ها و رویدادها</a>
+            </div>
+        </div>
+    </article>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public PortalServiceDefinition Service { get; set; } = default!;
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

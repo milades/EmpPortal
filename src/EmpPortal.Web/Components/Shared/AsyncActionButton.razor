@@ -1,12 +1,13 @@
 <button type="button"
         class="@CssClass"
+        @attributes="AdditionalAttributes"
         disabled="@(Disabled || isExecuting)"
         aria-busy="@isExecuting"
         @onclick="ExecuteAsync">
     @if (isExecuting)
     {
-        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
-        <span class="visually-hidden">در حال انجام عملیات</span>
+        <span class="button-loading-spinner" aria-hidden="true"></span>
+        <span>@LoadingText</span>
     }
     else
     {
@@ -24,10 +25,16 @@
     public bool Disabled { get; set; }
 
     [Parameter]
+    public string LoadingText { get; set; } = "در حال انجام…";
+
+    [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     [Parameter]
     public EventCallback OnClick { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     private async Task ExecuteAsync()
     {

@@ -20,8 +20,20 @@
               method="post"
               OnValidSubmit="SignOutAsync"
               FormName="portal-logout"
+              data-auto-submit="@Confirmed.ToString().ToLowerInvariant()"
+              data-static-submit-loading="true"
               Enhance="false">
-        <button class="submit-button" type="submit">خروج از پرتال</button>
+        @if (Confirmed)
+        {
+            <p role="status">در حال پایان‌دادن امن به نشست پرتال…</p>
+        }
+        <button class="submit-button @(Confirmed ? "visually-hidden" : null)"
+                type="submit"
+                data-confirm-submit
+                data-confirm-title="خروج از حساب کاربری؟"
+                data-confirm-text="فقط نشست پرتال بسته می‌شود و حساب Windows شما بدون تغییر باقی می‌ماند."
+                data-confirm-button-text="بله، خارج شو"
+                data-loading-text="در حال خروج امن…">خروج از پرتال</button>
     </EditForm>
 </section>
 
@@ -31,6 +43,9 @@
 
     [SupplyParameterFromForm(FormName = "portal-logout")]
     private LogoutInput Input { get; set; } = default!;
+
+    [SupplyParameterFromQuery]
+    private bool Confirmed { get; set; }
 
     protected override void OnInitialized()
     {

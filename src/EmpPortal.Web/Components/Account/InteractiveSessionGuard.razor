@@ -1,0 +1,57 @@
+@implements IDisposable
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JavaScript
+
+@code {
+    private IDisposable? locationChangingRegistration;
+    private bool redirecting;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            locationChangingRegistration = NavigationManager.RegisterLocationChangingHandler(
+                ValidateNavigationAsync);
+        }
+    }
+
+    private async ValueTask ValidateNavigationAsync(LocationChangingContext context)
+    {
+        if (redirecting || IsAccountRoute(context.TargetLocation))
+        {
+            return;
+        }
+
+        try
+        {
+            bool hasActiveSession = await JavaScript.InvokeAsync<bool>(
+                "empPortalSession.hasActiveSession",
+                context.CancellationToken);
+            if (hasActiveSession)
+            {
+                return;
+            }
+
+            context.PreventNavigation();
+            redirecting = true;
+            string relativeTarget = NavigationManager.ToBaseRelativePath(context.TargetLocation);
+            string returnUrl = Uri.EscapeDataString('/' + relativeTarget.TrimStart('/'));
+            NavigationManager.NavigateTo(
+                $"/account/login?returnUrl={returnUrl}",
+                forceLoad: true);
+        }
+        catch (Exception exception) when (exception is JSDisconnectedException or TaskCanceledException)
+        {
+            // Circuit teardown/navigation cancellation needs no user-visible error.
+        }
+    }
+
+    private static bool IsAccountRoute(string targetLocation) =>
+        Uri.TryCreate(targetLocation, UriKind.Absolute, out Uri? uri) &&
+        uri.AbsolutePath.StartsWith("/account/", StringComparison.OrdinalIgnoreCase);
+
+    public void Dispose()
+    {
+        locationChangingRegistration?.Dispose();
+    }
+}

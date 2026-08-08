@@ -12,5 +12,6 @@ GO
 GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::[identity] TO [$(ApplicationLogin)];
 GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::[security] TO [$(ApplicationLogin)];
 GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::[portal] TO [$(ApplicationLogin)];
+GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::[forms] TO [$(ApplicationLogin)];
 GRANT INSERT ON SCHEMA::[audit] TO [$(ApplicationLogin)];
 GO

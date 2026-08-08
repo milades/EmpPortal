@@ -1,28 +1,137 @@
 @inherits LayoutComponentBase
 @using EmpPortal.Application.Authorization
 @inject IConfiguration Configuration
+@inject EmpPortal.Web.Services.IConfirmationService ConfirmationService
+@inject NavigationManager NavigationManager
 
-<header class="site-header container-fluid">
-    <a class="brand" href="/" aria-label="صفحه اصلی @PortalTitle">
-        <span class="brand-mark" aria-hidden="true">اِ</span>
-        <span>@PortalTitle</span>
-    </a>
-    <AuthorizeView>
-        <Authorized Context="authenticationState">
-            <nav class="user-navigation" aria-label="منوی کاربری">
-                <span class="user-name">@authenticationState.User.Identity?.Name</span>
-                <AuthorizeView Roles="@PortalRoles.SystemAdministrator">
-                    <a href="/admin/settings">تنظیمات</a>
-                </AuthorizeView>
-                <a href="/account/logout" data-enhance-nav="false">خروج</a>
-            </nav>
-        </Authorized>
-    </AuthorizeView>
-</header>
+<AuthorizeView>
+    <Authorized Context="authenticationState">
+        <div class="ta-app-shell @(sidebarOpen ? "sidebar-open" : null)">
+            <button type="button" class="sidebar-overlay" aria-label="بستن منو" @onclick="CloseSidebar"></button>
 
-<main class="page-shell min-h-screen antialiased">
-    @Body
-</main>
+            <aside class="ta-sidebar" aria-label="منوی اصلی">
+                <div class="sidebar-brand-row">
+                    <a class="sidebar-brand" href="/" @onclick="CloseSidebar">
+                        <span class="brand-mark" aria-hidden="true">اِ</span>
+                        <span><strong>@PortalTitle</strong><small>سامانه خدمات سازمانی</small></span>
+                    </a>
+                    <button type="button" class="sidebar-close" aria-label="بستن منو" @onclick="CloseSidebar">×</button>
+                </div>
+
+                <nav class="sidebar-navigation">
+                    <span class="menu-caption">پرتال</span>
+                    <NavLink href="/" Match="NavLinkMatch.All" @onclick="CloseSidebar">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-16v4h6V4h-6Z" /></svg>
+                        <span>داشبورد</span>
+                    </NavLink>
+
+                    <span class="menu-caption">منابع انسانی</span>
+                    <NavLink href="/services/personnel" @onclick="CloseSidebar">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-7 9a7 7 0 0 1 14 0" /></svg>
+                        <span>پرونده پرسنلی</span>
+                        <em class="menu-soon">به‌زودی</em>
+                    </NavLink>
+                    <NavLink href="/services/payslip" @onclick="CloseSidebar">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10a2 2 0 0 1 2 2v14l-3-2-3 2-3-2-3 2V5a2 2 0 0 1 2-2Z" /><path d="M9 8h6M9 12h6" /></svg>
+                        <span>فیش حقوقی من</span>
+                        <em class="menu-soon">به‌زودی</em>
+                    </NavLink>
+                    <NavLink href="/services/payslip-settings" @onclick="CloseSidebar">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" /><path d="M4 12h2M18 12h2M12 4v2M12 18v2" /></svg>
+                        <span>تنظیمات فیش حقوقی</span>
+                        <em class="menu-soon">به‌زودی</em>
+                    </NavLink>
+                    <NavLink href="/services/benefits" @onclick="CloseSidebar">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M7 7.5c0-1.5 1.8-2.5 5-2.5s5 1 5 2.5-1.8 2.5-5 2.5-5 1-5 2.5 1.8 2.5 5 2.5 5-1 5-2.5" /></svg>
+                        <span>تسهیلات من</span>
+                        <em class="menu-soon">به‌زودی</em>
+                    </NavLink>
+
+                    <span class="menu-caption">خدمات کارکنان</span>
+                    <NavLink href="/forms" @onclick="CloseSidebar">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M6 5h12a1 1 0 0 1 1 1v13H5V6a1 1 0 0 1 1-1Z" /></svg>
+                        <span>ثبت‌نام‌ها و رویدادها</span>
+                    </NavLink>
+                    <NavLink href="/services/food" @onclick="CloseSidebar">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11h16v2a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6v-2Z" /><path d="M8 11V5M12 11V3M16 11V6" /></svg>
+                        <span>رزرو غذا</span>
+                        <em class="menu-soon">به‌زودی</em>
+                    </NavLink>
+                    <NavLink href="/services/assets" @onclick="CloseSidebar">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5 12 4l8 4.5v7L12 20l-8-4.5v-7Z" /><path d="M12 12v8M4 8.5l8 3.5 8-3.5" /></svg>
+                        <span>اموال من</span>
+                        <em class="menu-soon">به‌زودی</em>
+                    </NavLink>
+                    <NavLink href="/services/charity" @onclick="CloseSidebar">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 11c0 5.6-7 10-7 10Z" /></svg>
+                        <span>انفاق</span>
+                        <em class="menu-soon">به‌زودی</em>
+                    </NavLink>
+
+                    <span class="menu-caption">امنیت</span>
+                    <NavLink href="/services/security" @onclick="CloseSidebar">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v6c0 5 3.2 8.4 7 9 3.8-.6 7-4 7-9V6l-7-3Z" /><path d="m9.5 12 1.8 1.8L15 10" /></svg>
+                        <span>امنیت</span>
+                        <em class="menu-soon">به‌زودی</em>
+                    </NavLink>
+
+                    <AuthorizeView Roles="@FormAdminRoles" Context="formRolesState">
+                        <span class="menu-caption">مدیریت فرم‌ها</span>
+                        <NavLink href="/admin/forms" @onclick="CloseSidebar">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Zm4 3h8M8 12h5M8 16h8" /></svg>
+                            <span>مدیریت و گزارش فرم‌ها</span>
+                        </NavLink>
+                    </AuthorizeView>
+
+                    <AuthorizeView Roles="@PortalRoles.SystemAdministrator" Context="systemRoleState">
+                        <span class="menu-caption">سامانه</span>
+                        <NavLink href="/admin/settings" @onclick="CloseSidebar">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm7.4-3.5a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a8 8 0 0 0-1.7-1L15 3.5h-4L10.6 6a8 8 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.5a7 7 0 0 0 0 2.1l-2 1.5 2 3.4 2.4-1a8 8 0 0 0 1.7 1l.4 2.6h4l.4-2.6a8 8 0 0 0 1.7-1l2.4 1 2-3.4-2-1.5a7 7 0 0 0 .1-1Z" /></svg>
+                            <span>تنظیمات عملیاتی</span>
+                        </NavLink>
+                    </AuthorizeView>
+                </nav>
+
+                <div class="sidebar-footer">
+                    <div class="environment-card">
+                        <span class="environment-dot"></span>
+                        <div><strong>سرویس پرتال فعال است</strong><small>شبکه داخلی سازمان</small></div>
+                    </div>
+                </div>
+            </aside>
+
+            <div class="ta-main-column">
+                <header class="ta-topbar">
+                    <div class="topbar-leading">
+                        <button type="button" class="menu-toggle" aria-label="باز کردن منو" @onclick="OpenSidebar">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+                        </button>
+                        <div><strong>فضای کاری پرتال</strong><small>خدمات یکپارچه کارکنان</small></div>
+                    </div>
+                    <div class="topbar-user">
+                        <div class="user-copy"><strong>@GetDisplayName(authenticationState.User)</strong><small>@authenticationState.User.Identity?.Name</small></div>
+                        <span class="user-avatar" aria-hidden="true">@GetInitial(authenticationState.User)</span>
+                        <button type="button" class="logout-link" disabled="@isConfirmingLogout" aria-label="خروج از پرتال" @onclick="ConfirmLogoutAsync">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h5M15 8l4 4-4 4M8 12h11" /></svg>
+                            <span>خروج</span>
+                        </button>
+                    </div>
+                </header>
+
+                <main class="ta-page-shell">
+                    @Body
+                </main>
+            </div>
+
+            <InteractiveSessionGuard />
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <main class="auth-page-shell">
+            @Body
+        </main>
+    </NotAuthorized>
+</AuthorizeView>
 
 <div id="blazor-error-ui" data-nosnippet>
     خطایی در اجرای برنامه رخ داده است.
@@ -31,5 +140,49 @@
 </div>
 
 @code {
+    private bool sidebarOpen;
+    private bool isConfirmingLogout;
     private string PortalTitle => Configuration["Portal:Title"] ?? "پرتال کارمندی";
+
+    private const string FormAdminRoles =
+        PortalRoles.SystemAdministrator + "," + PortalRoles.FormAdministrator + "," +
+        PortalRoles.FormDesigner + "," + PortalRoles.FormPublisher + "," +
+        PortalRoles.SubmissionViewer + "," + PortalRoles.ReportExporter;
+
+    private void OpenSidebar() => sidebarOpen = true;
+    private void CloseSidebar() => sidebarOpen = false;
+
+    private async Task ConfirmLogoutAsync()
+    {
+        if (isConfirmingLogout)
+        {
+            return;
+        }
+
+        isConfirmingLogout = true;
+        try
+        {
+            bool confirmed = await ConfirmationService.ConfirmAsync(
+                "خروج از حساب کاربری؟",
+                "فقط نشست پرتال بسته می‌شود و حساب Windows شما بدون تغییر باقی می‌ماند.",
+                "بله، خارج شو");
+            if (confirmed)
+            {
+                NavigationManager.NavigateTo("/account/logout?confirmed=true", forceLoad: true);
+            }
+        }
+        finally
+        {
+            isConfirmingLogout = false;
+        }
+    }
+
+    private static string GetDisplayName(System.Security.Claims.ClaimsPrincipal user) =>
+        user.FindFirst("display_name")?.Value ?? user.Identity?.Name ?? "کاربر پرتال";
+
+    private static string GetInitial(System.Security.Claims.ClaimsPrincipal user)
+    {
+        string value = GetDisplayName(user).Trim();
+        return value.Length == 0 ? "ک" : value[..1];
+    }
 }
