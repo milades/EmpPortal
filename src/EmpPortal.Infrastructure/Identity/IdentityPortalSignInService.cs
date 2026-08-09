@@ -190,17 +190,7 @@ public sealed class IdentityPortalSignInService(
 
     private async Task<IdentityResult> EnsureRolesAsync(ApplicationUser user, string upn)
     {
-        (string Name, string Description)[] portalRoles =
-        [
-            (PortalRoles.Employee, "کاربر عادی پرتال"),
-            (PortalRoles.SystemAdministrator, "مدیر کل سامانه"),
-            (PortalRoles.FormAdministrator, "مدیر فرم‌ها"),
-            (PortalRoles.FormDesigner, "طراح فرم"),
-            (PortalRoles.FormPublisher, "منتشرکننده فرم"),
-            (PortalRoles.SubmissionViewer, "مشاهده‌کننده پاسخ فرم‌ها"),
-            (PortalRoles.ReportExporter, "دریافت‌کننده خروجی گزارش‌ها")
-        ];
-        foreach ((string roleName, string description) in portalRoles)
+        foreach ((string roleName, string description) in PortalRoles.SystemRoleSeed)
         {
             IdentityResult roleResult = await EnsureRoleExistsAsync(roleName, description);
             if (!roleResult.Succeeded)
@@ -233,16 +223,31 @@ public sealed class IdentityPortalSignInService(
 
     private async Task<IdentityResult> EnsureRoleExistsAsync(string roleName, string description)
     {
-        if (await roleManager.RoleExistsAsync(roleName))
+        ApplicationRole? existing = await roleManager.FindByNameAsync(roleName);
+        if (existing is not null)
         {
-            return IdentityResult.Success;
+            bool dirty = false;
+            if (!existing.IsSystem)
+            {
+                existing.IsSystem = true;
+                dirty = true;
+            }
+
+            if (string.IsNullOrWhiteSpace(existing.Description))
+            {
+                existing.Description = description;
+                dirty = true;
+            }
+
+            return dirty ? await roleManager.UpdateAsync(existing) : IdentityResult.Success;
         }
 
         return await roleManager.CreateAsync(new ApplicationRole
         {
             Id = Guid.NewGuid(),
             Name = roleName,
-            Description = description
+            Description = description,
+            IsSystem = true
         });
     }
 

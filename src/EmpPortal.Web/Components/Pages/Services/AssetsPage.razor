@@ -1,0 +1,123 @@
+@page "/services/assets"
+@attribute [Authorize(Policy = PortalResources.AssetsViewPolicy)]
+
+@using EmpPortal.Application.Authorization
+@using EmpPortal.Application.Tabular
+@using EmpPortal.Infrastructure.Persistence
+@using EmpPortal.Web.Security
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+
+@inject IEmployeeTabularQuery TabularQuery
+@inject PortalActorFactory ActorFactory
+@inject IDbContextFactory<PortalDbContext> DbContextFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>اموال من | پرتال کارمندی</PageTitle>
+
+<section class="tabular-service-page" aria-labelledby="assets-title">
+    <header class="page-heading">
+        <div>
+            <span class="eyebrow">خدمات کارکنان</span>
+            <h1 id="assets-title">اموال من</h1>
+            <p>فهرست اموال و تجهیزات تحویلی بر اساس کد پرسنلی، با جدول داینامیک مستقل از تعداد ستون‌های View.</p>
+        </div>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <div class="form-notice error" role="alert">@message</div>
+    }
+    else if (string.IsNullOrWhiteSpace(personnelCode))
+    {
+        <div class="empty of-state empty-state">
+            <h2>کد پرسنلی ثبت نشده است</h2>
+            <p>برای مشاهده اموال، مدیر سامانه باید کد پرسنلی شما را در بخش مدیریت دسترسی‌ها تنظیم کند.</p>
+        </div>
+    }
+    else if (isLoading)
+    {
+        <div class="loading-panel" role="status">در حال دریافت اموال…</div>
+    }
+    else
+    {
+        <DynamicDataTable Data="data"
+                          Page="page"
+                          PageSize="PageSize"
+                          IsBusy="isLoading"
+                          EmptyMessage="برای کد پرسنلی شما اموالی ثبت نشده است."
+                          PreviousRequested="PreviousPageAsync"
+                          NextRequested="NextPageAsync" />
+    }
+</section>
+
+@code {
+    private const int PageSize = 50;
+    private TabularDataSet? data;
+    private string? personnelCode;
+    private string? message;
+    private bool isLoading = true;
+    private int page = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            PortalActor actor = await ActorFactory.CreateAsync();
+            await using PortalDbContext dbContext = await DbContextFactory.CreateDbContextAsync();
+            personnelCode = await dbContext.Users.AsNoTracking()
+                .Where(user => user.Id == actor.UserId)
+                .Select(user => user.PersonnelCode)
+                .FirstOrDefaultAsync();
+
+            if (!string.IsNullOrWhiteSpace(personnelCode))
+            {
+                await LoadAsync();
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            NavigationManager.NavigateTo("/account/access-denied");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        message = null;
+        try
+        {
+            data = await TabularQuery.QueryAsync(EmployeeTabularSourceKind.Assets, personnelCode!, page, PageSize);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException)
+        {
+            message = exception.Message;
+            data = null;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task PreviousPageAsync()
+    {
+        if (page <= 1)
+        {
+            return;
+        }
+
+        page--;
+        await LoadAsync();
+    }
+
+    private async Task NextPageAsync()
+    {
+        page++;
+        await LoadAsync();
+    }
+}

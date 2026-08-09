@@ -56,6 +56,8 @@ dotnet test EmpPortal.sln --no-build
 اسناد مرجع:
 
 - [نقشه راه](docs/ROADMAP.md)
+- [استقرار ۰ تا ۱۰۰ آفلاین (آموزشی)](docs/PRODUCTION-OFFLINE-ROLLOUT.md)
+- [فرم تکمیل‌شونده Go/No-Go عملیاتی](docs/PRODUCTION-FILLABLE-CHECKLIST.md)
 - [Workflow توسعه](docs/DEVELOPMENT-WORKFLOW.md)
 - [وضعیت پیاده‌سازی](docs/IMPLEMENTATION-STATUS.md)
 - [تنظیمات](docs/configuration/settings-catalog.md)

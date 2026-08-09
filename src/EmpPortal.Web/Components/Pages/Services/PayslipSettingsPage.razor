@@ -1,0 +1,190 @@
+@page "/services/payslip-settings"
+@attribute [Authorize(Policy = PortalResources.PayslipSettingsPolicy)]
+
+@using System.Globalization
+@using EmpPortal.Application.Authorization
+@using EmpPortal.Application.Hr
+@using EmpPortal.Application.Localization
+@using EmpPortal.Web.Security
+@using Microsoft.AspNetCore.Authorization
+
+@inject IPayslipSettingsService PayslipSettingsService
+@inject PortalActorFactory ActorFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>تنظیمات فیش حقوقی | پرتال کارمندی</PageTitle>
+
+<section class="payslip-settings-page" aria-labelledby="payslip-settings-title">
+    <header class="page-heading">
+        <div>
+            <span class="eyebrow">منابع انسانی</span>
+            <h1 id="payslip-settings-title">تنظیمات نمایش فیش حقوقی</h1>
+            <p>با انتخاب ماه و سال شمسی، نمایش فیش آن دوره را برای همه پرسنل فعال یا غیرفعال کنید.</p>
+        </div>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <div class="form-notice @messageClass" role="status">@message</div>
+    }
+
+    <div class="payslip-controls">
+        <label>سال شمسی
+            <SearchableSelect Options="yearOptions" Value="@selectedYearValue" ValueChanged="OnYearChangedAsync" Placeholder="سال" />
+        </label>
+        <label>ماه شمسی
+            <SearchableSelect Options="monthOptions" Value="@selectedMonthValue" ValueChanged="OnMonthChangedAsync" Placeholder="ماه" />
+        </label>
+    </div>
+
+    <article class="visibility-card">
+        <div>
+            <small>وضعیت دوره انتخاب‌شده</small>
+            <strong>@PersianDateTimeFormatter.MonthNames[selectedMonth - 1] @PersianDateTimeFormatter.ToPersianDigits(selectedYear.ToString(CultureInfo.InvariantCulture))</strong>
+            <p>@(current?.IsVisibleToEmployees == true ? "نمایش فیش برای پرسنل فعال است." : "نمایش فیش برای پرسنل غیرفعال است.")</p>
+        </div>
+        <label class="polished-check">
+            <input type="checkbox"
+                   checked="@(current?.IsVisibleToEmployees == true)"
+                   disabled="@isBusy"
+                   @onchange="ToggleVisibilityAsync" />
+            <span>فعال برای پرسنل</span>
+        </label>
+    </article>
+
+    <section aria-labelledby="recent-periods-title">
+        <h2 id="recent-periods-title">دوره‌های تنظیم‌شده اخیر</h2>
+        @if (isLoading)
+        {
+            <div class="loading-panel" role="status">در حال دریافت…</div>
+        }
+        else if (recent.Count == 0)
+        {
+            <div class="empty-state"><h2>هنوز دوره‌ای تنظیم نشده</h2><p>اولین دوره را از طریق سوئیچ بالا فعال کنید.</p></div>
+        }
+        else
+        {
+            <div class="report-table-wrap">
+                <table class="report-table">
+                    <thead>
+                        <tr><th>سال</th><th>ماه</th><th>وضعیت</th><th>آخرین تغییر</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (PayslipPeriodSettingData item in recent)
+                        {
+                            <tr>
+                                <td>@PersianDateTimeFormatter.ToPersianDigits(item.PersianYear.ToString(CultureInfo.InvariantCulture))</td>
+                                <td>@PersianDateTimeFormatter.MonthNames[item.PersianMonth - 1]</td>
+                                <td>@(item.IsVisibleToEmployees ? "فعال" : "غیرفعال")</td>
+                                <td>@PersianDateTimeFormatter.FormatDateTime(item.UpdatedAtUtc)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</section>
+
+@code {
+    private readonly List<SearchableSelectOption> yearOptions = [];
+    private readonly List<SearchableSelectOption> monthOptions = [];
+    private int selectedYear;
+    private int selectedMonth = 1;
+    private string selectedYearValue = string.Empty;
+    private string selectedMonthValue = string.Empty;
+    private PayslipPeriodSettingData? current;
+    private List<PayslipPeriodSettingData> recent = [];
+    private bool isLoading = true;
+    private bool isBusy;
+    private string? message;
+    private string messageClass = "success";
+
+    protected override async Task OnInitializedAsync()
+    {
+        PersianCalendar calendar = new();
+        DateTime today = DateTime.Today;
+        int currentYear = calendar.GetYear(today);
+        selectedYear = currentYear;
+        selectedMonth = calendar.GetMonth(today);
+        selectedYearValue = selectedYear.ToString(CultureInfo.InvariantCulture);
+        selectedMonthValue = selectedMonth.ToString(CultureInfo.InvariantCulture);
+        for (int year = currentYear - 5; year <= currentYear + 1; year++)
+        {
+            yearOptions.Add(new SearchableSelectOption(
+                year.ToString(CultureInfo.InvariantCulture),
+                PersianDateTimeFormatter.ToPersianDigits(year.ToString(CultureInfo.InvariantCulture))));
+        }
+
+        for (int month = 1; month <= 12; month++)
+        {
+            monthOptions.Add(new SearchableSelectOption(
+                month.ToString(CultureInfo.InvariantCulture),
+                PersianDateTimeFormatter.MonthNames[month - 1]));
+        }
+
+        try
+        {
+            await ReloadAllAsync();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            NavigationManager.NavigateTo("/account/access-denied");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task OnYearChangedAsync(string? value)
+    {
+        selectedYearValue = value ?? string.Empty;
+        if (int.TryParse(value, CultureInfo.InvariantCulture, out int year))
+        {
+            selectedYear = year;
+            await ReloadAllAsync();
+        }
+    }
+
+    private async Task OnMonthChangedAsync(string? value)
+    {
+        selectedMonthValue = value ?? string.Empty;
+        if (int.TryParse(value, CultureInfo.InvariantCulture, out int month))
+        {
+            selectedMonth = month;
+            await ReloadAllAsync();
+        }
+    }
+
+    private async Task ReloadAllAsync()
+    {
+        PortalActor actor = await ActorFactory.CreateAsync();
+        current = await PayslipSettingsService.GetAsync(actor, selectedYear, selectedMonth);
+        recent = (await PayslipSettingsService.ListRecentAsync(actor)).ToList();
+    }
+
+    private async Task ToggleVisibilityAsync(ChangeEventArgs args)
+    {
+        bool enabled = args.Value is true;
+        isBusy = true;
+        message = null;
+        try
+        {
+            PortalActor actor = await ActorFactory.CreateAsync();
+            current = await PayslipSettingsService.SetVisibilityAsync(actor, selectedYear, selectedMonth, enabled);
+            recent = (await PayslipSettingsService.ListRecentAsync(actor)).ToList();
+            messageClass = "success";
+            message = enabled ? "نمایش فیش این دوره فعال شد." : "نمایش فیش این دوره غیرفعال شد.";
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or ArgumentOutOfRangeException or InvalidOperationException)
+        {
+            messageClass = "error";
+            message = exception.Message;
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+}

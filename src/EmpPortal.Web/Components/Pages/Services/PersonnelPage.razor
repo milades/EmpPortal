@@ -1,0 +1,467 @@
+@page "/services/personnel"
+@attribute [Authorize(Policy = PortalResources.PersonnelViewPolicy)]
+
+@using EmpPortal.Application.Authorization
+@using EmpPortal.Application.Hr
+@using EmpPortal.Application.Localization
+@using EmpPortal.Web.Security
+@using Microsoft.AspNetCore.Authorization
+
+@inject IPersonnelFileService PersonnelFileService
+@inject PortalActorFactory ActorFactory
+@inject NavigationManager NavigationManager
+@inject EmpPortal.Web.Services.IConfirmationService ConfirmationService
+
+<PageTitle>پرونده پرسنلی | پرتال کارمندی</PageTitle>
+
+<section class="personnel-page" aria-labelledby="personnel-title">
+    <header class="page-heading">
+        <div>
+            <span class="eyebrow">منابع انسانی</span>
+            <h1 id="personnel-title">پرونده پرسنلی</h1>
+            <p>اطلاعات شخصی و مشخصات خودروهای ثبت‌شده برای شما.</p>
+        </div>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <div class="form-notice @messageClass" role="status">@message</div>
+    }
+
+    <div class="access-tabs" role="tablist">
+        <button type="button" class="@(activeTab == "personal" ? "active" : null)" @onclick='() => activeTab = "personal"'>اطلاعات شخصی</button>
+        <button type="button" class="@(activeTab == "vehicles" ? "active" : null)" @onclick='() => activeTab = "vehicles"'>اطلاعات خودرو</button>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="loading-panel" role="status">در حال دریافت پرونده…</div>
+    }
+    else if (activeTab == "personal")
+    {
+        <div class="editor-panel">
+            <header class="editor-panel-header">
+                <h2>اطلاعات شخصی</h2>
+            </header>
+            <label>شماره تلفن داخلی
+                <input class="form-control polished-input"
+                       dir="ltr"
+                       lang="en"
+                       inputmode="numeric"
+                       pattern="[0-9]*"
+                       maxlength="32"
+                       placeholder="مثلاً 1234"
+                       value="@internalPhone"
+                       @oninput="OnInternalPhoneInput" />
+            </label>
+            <div class="editor-actions">
+                <button type="button" class="primary-button" disabled="@isBusy" @onclick="SavePhoneAsync">ذخیره</button>
+            </div>
+            @if (file is not null)
+            {
+                <small>آخرین به‌روزرسانی: @PersianDateTimeFormatter.FormatDateTime(file.Profile.UpdatedAtUtc)</small>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="editor-panel">
+            <header class="editor-panel-header">
+                <h2>@(editingVehicleId is null ? "افزودن خودرو" : "ویرایش خودرو")</h2>
+                @if (editingVehicleId is not null)
+                {
+                    <button type="button" class="secondary-button small" @onclick="ResetVehicleForm">انصراف از ویرایش</button>
+                }
+            </header>
+            <div class="payslip-controls">
+                <label>پلاک
+                    <input class="form-control polished-input" @bind="plateNumber" maxlength="32" />
+                </label>
+                <label>نوع خودرو
+                    <SearchableSelect Options="typeOptions" Value="@vehicleType" ValueChanged="OnVehicleTypeChanged" Placeholder="انتخاب نوع" />
+                </label>
+                @if (VehicleCatalog.IsCustom(vehicleType))
+                {
+                    <label>نوع (ثبت دستی)
+                        <input class="form-control polished-input" @bind="customVehicleType" maxlength="100" placeholder="نوع خودرو را بنویسید" />
+                    </label>
+                }
+                <label>مدل
+                    <SearchableSelect Options="modelOptions" Value="@vehicleModel" ValueChanged="OnVehicleModelChanged" Placeholder="انتخاب مدل" />
+                </label>
+                @if (VehicleCatalog.IsCustom(vehicleModel))
+                {
+                    <label>مدل (ثبت دستی)
+                        <input class="form-control polished-input" @bind="customVehicleModel" maxlength="100" placeholder="مدل خودرو را بنویسید" />
+                    </label>
+                }
+                <label>تیپ
+                    <SearchableSelect Options="trimOptions" Value="@vehicleTrim" ValueChanged="OnVehicleTrimChanged" Placeholder="انتخاب تیپ" />
+                </label>
+                @if (VehicleCatalog.IsCustom(vehicleTrim))
+                {
+                    <label>تیپ (ثبت دستی)
+                        <input class="form-control polished-input" @bind="customVehicleTrim" maxlength="100" placeholder="تیپ خودرو را بنویسید" />
+                    </label>
+                }
+                <label>رنگ
+                    <SearchableSelect Options="colorOptions" Value="@vehicleColor" ValueChanged="OnVehicleColorChanged" Placeholder="انتخاب رنگ" />
+                </label>
+                @if (VehicleCatalog.IsCustom(vehicleColor))
+                {
+                    <label>رنگ (ثبت دستی)
+                        <input class="form-control polished-input" @bind="customVehicleColor" maxlength="100" placeholder="رنگ خودرو را بنویسید" />
+                    </label>
+                }
+                <label>توضیحات
+                    <input class="form-control polished-input" @bind="vehicleNotes" maxlength="500" />
+                </label>
+            </div>
+            <div class="editor-actions">
+                <button type="button" class="primary-button" disabled="@isBusy" @onclick="SaveVehicleAsync">
+                    @(editingVehicleId is null ? "ثبت خودرو" : "ذخیره تغییرات")
+                </button>
+                @if (editingVehicleId is not null)
+                {
+                    <button type="button" class="secondary-button" @onclick="ResetVehicleForm">انصراف</button>
+                }
+            </div>
+        </div>
+
+        @if (file is null || file.Vehicles.Count == 0)
+        {
+            <div class="empty-state"><h2>خودرویی ثبت نشده</h2><p>اولین خودرو را از فرم بالا اضافه کنید.</p></div>
+        }
+        else
+        {
+            <div class="report-table-wrap">
+                <table class="report-table dynamic-data-table">
+                    <thead>
+                        <tr><th>پلاک</th><th>نوع</th><th>مدل</th><th>تیپ</th><th>رنگ</th><th>توضیحات</th><th>عملیات</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (PersonnelVehicleData vehicle in file.Vehicles)
+                        {
+                            <tr class="@(editingVehicleId == vehicle.Id ? "is-selected" : null)">
+                                <td>@vehicle.PlateNumber</td>
+                                <td>@vehicle.VehicleType</td>
+                                <td>@(vehicle.Model ?? "—")</td>
+                                <td>@(vehicle.Trim ?? "—")</td>
+                                <td>@(vehicle.Color ?? "—")</td>
+                                <td>@(vehicle.Notes ?? "—")</td>
+                                <td>
+                                    <div class="table-actions">
+                                        <button type="button" class="table-action edit" @onclick="() => EditVehicle(vehicle)">ویرایش</button>
+                                        <AsyncActionButton CssClass="table-action delete" Disabled="@isBusy" LoadingText="در حال حذف…" OnClick="@(() => DeleteVehicleAsync(vehicle.Id))">حذف</AsyncActionButton>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+</section>
+
+@code {
+    private static readonly SearchableSelectOption CustomOption =
+        new(VehicleCatalog.CustomValue, VehicleCatalog.CustomLabel);
+
+    private string activeTab = "personal";
+    private PersonnelFileData? file;
+    private bool isLoading = true;
+    private bool isBusy;
+    private string? message;
+    private string messageClass = "success";
+    private string? internalPhone;
+    private Guid? editingVehicleId;
+    private string plateNumber = string.Empty;
+    private string vehicleType = string.Empty;
+    private string vehicleTrim = string.Empty;
+    private string vehicleModel = string.Empty;
+    private string vehicleColor = string.Empty;
+    private string customVehicleType = string.Empty;
+    private string customVehicleModel = string.Empty;
+    private string customVehicleTrim = string.Empty;
+    private string customVehicleColor = string.Empty;
+    private string? vehicleNotes;
+
+    private List<SearchableSelectOption> typeOptions = [];
+    private List<SearchableSelectOption> modelOptions = [];
+    private List<SearchableSelectOption> trimOptions = [];
+    private List<SearchableSelectOption> colorOptions = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        typeOptions = BuildOptions(VehicleCatalog.Types);
+        colorOptions = BuildOptions(VehicleCatalog.Colors);
+        RefreshModelOptions();
+        RefreshTrimOptions();
+
+        try
+        {
+            await ReloadAsync();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            NavigationManager.NavigateTo("/account/access-denied");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ReloadAsync()
+    {
+        PortalActor actor = await ActorFactory.CreateAsync();
+        file = await PersonnelFileService.GetMineAsync(actor);
+        internalPhone = NormalizePhoneDigits(file.Profile.InternalPhone);
+    }
+
+    private void OnInternalPhoneInput(ChangeEventArgs args)
+    {
+        internalPhone = NormalizePhoneDigits(args.Value?.ToString());
+    }
+
+    private static string NormalizePhoneDigits(string? raw)
+    {
+        string normalized = PersianDateTimeFormatter.NormalizeDigits(raw);
+        return new string(normalized.Where(digit => digit is >= '0' and <= '9').ToArray());
+    }
+
+    private async Task SavePhoneAsync()
+    {
+        isBusy = true; message = null;
+        try
+        {
+            PortalActor actor = await ActorFactory.CreateAsync();
+            await PersonnelFileService.SaveInternalPhoneAsync(actor, NormalizePhoneDigits(internalPhone));
+            await ReloadAsync();
+            messageClass = "success"; message = "شماره تلفن داخلی ذخیره شد.";
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or ArgumentException or ArgumentOutOfRangeException or InvalidOperationException)
+        {
+            messageClass = "error"; message = exception.Message;
+        }
+        finally { isBusy = false; }
+    }
+
+    private Task OnVehicleTypeChanged(string? value)
+    {
+        vehicleType = value ?? string.Empty;
+        if (!VehicleCatalog.IsCustom(vehicleType))
+        {
+            customVehicleType = string.Empty;
+        }
+
+        RefreshModelOptions();
+        if (!VehicleCatalog.IsCustom(vehicleModel) &&
+            !modelOptions.Any(option => option.Value == vehicleModel))
+        {
+            vehicleModel = string.Empty;
+            customVehicleModel = string.Empty;
+            vehicleTrim = string.Empty;
+            customVehicleTrim = string.Empty;
+        }
+
+        RefreshTrimOptions();
+        return Task.CompletedTask;
+    }
+
+    private Task OnVehicleModelChanged(string? value)
+    {
+        vehicleModel = value ?? string.Empty;
+        if (!VehicleCatalog.IsCustom(vehicleModel))
+        {
+            customVehicleModel = string.Empty;
+        }
+
+        RefreshTrimOptions();
+        if (!VehicleCatalog.IsCustom(vehicleTrim) &&
+            !trimOptions.Any(option => option.Value == vehicleTrim))
+        {
+            vehicleTrim = string.Empty;
+            customVehicleTrim = string.Empty;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task OnVehicleTrimChanged(string? value)
+    {
+        vehicleTrim = value ?? string.Empty;
+        if (!VehicleCatalog.IsCustom(vehicleTrim))
+        {
+            customVehicleTrim = string.Empty;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task OnVehicleColorChanged(string? value)
+    {
+        vehicleColor = value ?? string.Empty;
+        if (!VehicleCatalog.IsCustom(vehicleColor))
+        {
+            customVehicleColor = string.Empty;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private void RefreshModelOptions()
+    {
+        modelOptions = BuildOptions(VehicleCatalog.GetModelsForType(vehicleType));
+    }
+
+    private void RefreshTrimOptions()
+    {
+        trimOptions = BuildOptions(VehicleCatalog.GetTrimsForModel(vehicleModel));
+    }
+
+    private static List<SearchableSelectOption> BuildOptions(IEnumerable<string> values) =>
+        values
+            .OrderBy(item => item, StringComparer.CurrentCultureIgnoreCase)
+            .Select(item => new SearchableSelectOption(item, item))
+            .Append(CustomOption)
+            .ToList();
+
+    private void EditVehicle(PersonnelVehicleData vehicle)
+    {
+        editingVehicleId = vehicle.Id;
+        plateNumber = vehicle.PlateNumber;
+        MapCatalogSelection(vehicle.VehicleType, VehicleCatalog.Types, out vehicleType, out customVehicleType);
+        RefreshModelOptions();
+        MapCatalogSelection(vehicle.Model, VehicleCatalog.GetModelsForType(vehicleType), out vehicleModel, out customVehicleModel);
+        RefreshTrimOptions();
+        MapCatalogSelection(vehicle.Trim, VehicleCatalog.GetTrimsForModel(vehicleModel), out vehicleTrim, out customVehicleTrim);
+        MapCatalogSelection(vehicle.Color, VehicleCatalog.Colors, out vehicleColor, out customVehicleColor);
+        vehicleNotes = vehicle.Notes;
+    }
+
+    private static void MapCatalogSelection(
+        string? stored,
+        IEnumerable<string> catalog,
+        out string selected,
+        out string custom)
+    {
+        if (string.IsNullOrWhiteSpace(stored))
+        {
+            selected = string.Empty;
+            custom = string.Empty;
+            return;
+        }
+
+        if (VehicleCatalog.IsKnownValue(stored, catalog))
+        {
+            selected = catalog.First(item => string.Equals(item, stored, StringComparison.OrdinalIgnoreCase));
+            custom = string.Empty;
+            return;
+        }
+
+        selected = VehicleCatalog.CustomValue;
+        custom = stored;
+    }
+
+    private static string ResolveCatalogValue(string selected, string custom, string fieldTitle)
+    {
+        if (VehicleCatalog.IsCustom(selected))
+        {
+            if (string.IsNullOrWhiteSpace(custom))
+            {
+                throw new ArgumentException($"{fieldTitle} دستی را وارد کنید.");
+            }
+
+            return custom.Trim();
+        }
+
+        return selected.Trim();
+    }
+
+    private void ResetVehicleForm()
+    {
+        editingVehicleId = null;
+        plateNumber = string.Empty;
+        vehicleType = string.Empty;
+        vehicleTrim = string.Empty;
+        vehicleModel = string.Empty;
+        vehicleColor = string.Empty;
+        customVehicleType = string.Empty;
+        customVehicleModel = string.Empty;
+        customVehicleTrim = string.Empty;
+        customVehicleColor = string.Empty;
+        vehicleNotes = null;
+        RefreshModelOptions();
+        RefreshTrimOptions();
+    }
+
+    private async Task SaveVehicleAsync()
+    {
+        isBusy = true; message = null;
+        try
+        {
+            string resolvedType = ResolveCatalogValue(vehicleType, customVehicleType, "نوع خودرو");
+            string? resolvedModel = string.IsNullOrWhiteSpace(vehicleModel)
+                ? null
+                : ResolveCatalogValue(vehicleModel, customVehicleModel, "مدل");
+            string? resolvedTrim = string.IsNullOrWhiteSpace(vehicleTrim)
+                ? null
+                : ResolveCatalogValue(vehicleTrim, customVehicleTrim, "تیپ");
+            string? resolvedColor = string.IsNullOrWhiteSpace(vehicleColor)
+                ? null
+                : ResolveCatalogValue(vehicleColor, customVehicleColor, "رنگ");
+
+            PortalActor actor = await ActorFactory.CreateAsync();
+            await PersonnelFileService.UpsertVehicleAsync(
+                actor,
+                editingVehicleId,
+                plateNumber,
+                resolvedType,
+                resolvedTrim,
+                resolvedModel,
+                resolvedColor,
+                vehicleNotes);
+            ResetVehicleForm();
+            await ReloadAsync();
+            messageClass = "success"; message = "اطلاعات خودرو ذخیره شد.";
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or ArgumentException or ArgumentOutOfRangeException or KeyNotFoundException or InvalidOperationException)
+        {
+            messageClass = "error"; message = exception.Message;
+        }
+        finally { isBusy = false; }
+    }
+
+    private async Task DeleteVehicleAsync(Guid vehicleId)
+    {
+        bool confirmed = await ConfirmationService.ConfirmAsync(
+            "حذف خودرو؟",
+            "این خودرو از پرونده پرسنلی شما حذف می‌شود.",
+            "بله، حذف شود");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        isBusy = true; message = null;
+        try
+        {
+            PortalActor actor = await ActorFactory.CreateAsync();
+            await PersonnelFileService.DeleteVehicleAsync(actor, vehicleId);
+            if (editingVehicleId == vehicleId)
+            {
+                ResetVehicleForm();
+            }
+
+            await ReloadAsync();
+            messageClass = "success"; message = "خودرو حذف شد.";
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or KeyNotFoundException)
+        {
+            messageClass = "error"; message = exception.Message;
+        }
+        finally { isBusy = false; }
+    }
+}

@@ -1,0 +1,537 @@
+@page "/admin/access"
+@attribute [Authorize(Policy = PortalResources.AccessManagePolicy)]
+
+@using EmpPortal.Application.Authorization
+@using EmpPortal.Domain.Access
+@using EmpPortal.Web.Security
+@using Microsoft.AspNetCore.Authorization
+
+@inject IPortalAccessAdministrationService AccessAdministration
+@inject PortalActorFactory ActorFactory
+@inject NavigationManager NavigationManager
+@inject EmpPortal.Web.Services.IConfirmationService ConfirmationService
+
+<PageTitle>مدیریت دسترسی‌ها | پرتال کارمندی</PageTitle>
+
+<section class="access-admin-page" aria-labelledby="access-admin-title">
+    <header class="page-heading">
+        <div>
+            <span class="eyebrow">سامانه</span>
+            <h1 id="access-admin-title">مدیریت دسترسی کاربران</h1>
+            <p>نقش‌های داینامیک، تخصیص نقش به کاربر، و مجوز بخش‌هایی که از کاتالوگ یکپارچه سامانه می‌آیند.</p>
+        </div>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <div class="form-notice @messageClass" role="status">@message</div>
+    }
+
+    <div class="access-tabs" role="tablist">
+        <button type="button" class="@(activeTab == "users" ? "active" : null)" @onclick='() => activeTab = "users"'>کاربران و نقش‌ها</button>
+        <button type="button" class="@(activeTab == "roles" ? "active" : null)" @onclick='() => activeTab = "roles"'>مدیریت نقش‌ها</button>
+        <button type="button" class="@(activeTab == "grants" ? "active" : null)" @onclick='() => activeTab = "grants"'>مجوز بخش‌ها</button>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="loading-panel" role="status">در حال بارگذاری…</div>
+    }
+    else if (activeTab == "users")
+    {
+        <div class="access-toolbar">
+            <label>جستجوی کاربر
+                <input class="form-control polished-input" placeholder="نام، UPN یا کد پرسنلی" @bind="userSearch" @bind:event="oninput" />
+            </label>
+            <button type="button" class="secondary-button" disabled="@isBusy" @onclick="SearchUsersAsync">جستجو</button>
+        </div>
+
+        <div class="access-layout">
+            <div class="report-table-wrap">
+                <table class="report-table">
+                    <thead>
+                        <tr><th>کاربر</th><th>کد پرسنلی</th><th>نقش‌ها</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (PortalUserAccessSummary user in users)
+                        {
+                            <tr class="@(selectedUser?.UserId == user.UserId ? "is-selected" : null)">
+                                <td><strong>@user.DisplayName</strong><small dir="ltr">@user.Upn</small></td>
+                                <td>@(user.PersonnelCode ?? "—")</td>
+                                <td>@string.Join("، ", user.Roles)</td>
+                                <td>
+                                    <div class="table-actions">
+                                        <button type="button" class="table-action edit" @onclick="() => SelectUser(user)">ویرایش</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (selectedUser is not null)
+            {
+                <aside class="editor-panel access-editor">
+                    <header class="editor-panel-header">
+                        <h2>ویرایش کاربر</h2>
+                        <button type="button" class="secondary-button small" @onclick="ClearSelectedUser">انصراف از ویرایش</button>
+                    </header>
+                    <p class="editor-subtitle"><strong>@selectedUser.DisplayName</strong> <small dir="ltr">@selectedUser.Upn</small></p>
+                    <label>کد پرسنلی
+                        <input class="form-control polished-input" @bind="personnelCodeDraft" maxlength="64" />
+                    </label>
+                    <h3>نقش‌ها</h3>
+                    <div class="rights-grid">
+                        @foreach (PortalRoleOption role in roles)
+                        {
+                            <label class="polished-check">
+                                <input type="checkbox"
+                                       checked="@selectedRoles.Contains(role.Name)"
+                                       disabled="@(role.Name == PortalRoles.Employee)"
+                                       @onchange="args => ToggleRole(role.Name, args)" />
+                                <span>@role.DisplayName</span>
+                            </label>
+                        }
+                    </div>
+                    <div class="editor-actions">
+                        <button type="button" class="secondary-button" disabled="@isBusy" @onclick="SavePersonnelCodeAsync">ذخیره کد پرسنلی</button>
+                        <button type="button" class="primary-button" disabled="@isBusy" @onclick="SaveRolesAsync">ذخیره نقش‌ها</button>
+                    </div>
+                </aside>
+            }
+        </div>
+    }
+    else if (activeTab == "roles")
+    {
+        <div class="editor-panel">
+            <header class="editor-panel-header">
+                <h2>@(editingRoleId is null ? "افزودن نقش" : "ویرایش نقش")</h2>
+                @if (editingRoleId is not null)
+                {
+                    <button type="button" class="secondary-button small" @onclick="CancelRoleEdit">انصراف از ویرایش</button>
+                }
+            </header>
+            <div class="access-grant-form">
+                <label>نام نقش (لاتین)
+                    <input class="form-control polished-input"
+                           dir="ltr"
+                           @bind="newRoleName"
+                           placeholder="HrOfficer"
+                           disabled="@(editingRoleId is not null)" />
+                </label>
+                <label>عنوان نمایشی
+                    <input class="form-control polished-input" @bind="newRoleDescription" placeholder="مثلاً کارشناس منابع انسانی" />
+                </label>
+            </div>
+            <div class="editor-actions">
+                <button type="button" class="primary-button" disabled="@isBusy" @onclick="SaveRoleFormAsync">
+                    @(editingRoleId is null ? "ثبت نقش" : "ذخیره تغییرات")
+                </button>
+                @if (editingRoleId is not null)
+                {
+                    <button type="button" class="secondary-button" @onclick="CancelRoleEdit">انصراف</button>
+                }
+            </div>
+        </div>
+
+        <div class="report-table-wrap">
+            <table class="report-table">
+                <thead>
+                    <tr><th>نام</th><th>عنوان</th><th>نوع</th><th>تعداد کاربر</th><th>عملیات</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (PortalRoleOption role in roles)
+                    {
+                        <tr class="@(editingRoleId == role.Id ? "is-selected" : null)">
+                            <td><code dir="ltr">@role.Name</code></td>
+                            <td>@role.DisplayName</td>
+                            <td>@(role.IsSystem ? "سیستمی" : "سفارشی")</td>
+                            <td>@role.UserCount</td>
+                            <td>
+                                <div class="table-actions">
+                                    <button type="button" class="table-action edit" @onclick="() => BeginRoleEdit(role)">ویرایش</button>
+                                    @if (!role.IsSystem)
+                                    {
+                                        <AsyncActionButton CssClass="table-action delete" Disabled="@isBusy" LoadingText="در حال حذف…" OnClick="@(() => DeleteRoleAsync(role.Id))">حذف</AsyncActionButton>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="access-grant-form">
+            <label>منبع / بخش
+                <SearchableSelect Options="resourceOptions"
+                                  Value="@grantResourceKey"
+                                  ValueChanged="OnGrantResourceChanged"
+                                  Placeholder="جستجو و انتخاب بخش سامانه" />
+            </label>
+            <label>نوع موضوع
+                <SearchableSelect Options="subjectTypeOptions"
+                                  Value="@grantSubjectTypeValue"
+                                  ValueChanged="OnGrantSubjectTypeChanged"
+                                  Placeholder="نوع موضوع" />
+            </label>
+            @if (grantSubjectTypeValue == "2")
+            {
+                <label>نقش
+                    <SearchableSelect Options="roleSelectOptions"
+                                      Value="@grantSubjectKey"
+                                      ValueChanged="OnGrantSubjectKeyChanged"
+                                      Placeholder="انتخاب نقش" />
+                </label>
+            }
+            else if (grantSubjectTypeValue == "1")
+            {
+                <label>کاربر
+                    <SearchableSelect Options="userSelectOptions"
+                                      Value="@grantSubjectKey"
+                                      ValueChanged="OnGrantSubjectKeyChanged"
+                                      Placeholder="انتخاب کاربر" />
+                </label>
+            }
+            <button type="button" class="primary-button" disabled="@isBusy" @onclick="AddGrantAsync">افزودن مجوز</button>
+        </div>
+
+        <div class="report-table-wrap">
+            <table class="report-table">
+                <thead>
+                    <tr><th>بخش</th><th>کلید</th><th>موضوع</th><th>نوع</th><th>زمان</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (PortalAccessGrantData grant in grants)
+                    {
+                        <tr>
+                            <td>@grant.ResourceTitle</td>
+                            <td><code dir="ltr">@grant.ResourceKey</code></td>
+                            <td>@grant.SubjectDisplayName</td>
+                            <td>@GetSubjectTypeText(grant.SubjectType)</td>
+                            <td>@grant.CreatedAtUtc.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</td>
+                            <td>
+                                <AsyncActionButton CssClass="table-action delete" Disabled="@isBusy" LoadingText="در حال حذف…" OnClick="@(() => RemoveGrantAsync(grant.Id))">حذف</AsyncActionButton>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@code {
+    private string activeTab = "users";
+    private bool isLoading = true;
+    private bool isBusy;
+    private string? message;
+    private string messageClass = "success";
+    private string? userSearch;
+    private List<PortalUserAccessSummary> users = [];
+    private List<PortalAccessGrantData> grants = [];
+    private List<PortalRoleOption> roles = [];
+    private PortalUserAccessSummary? selectedUser;
+    private HashSet<string> selectedRoles = new(StringComparer.OrdinalIgnoreCase);
+    private string personnelCodeDraft = string.Empty;
+    private string grantResourceKey = string.Empty;
+    private string grantSubjectTypeValue = "2";
+    private string grantSubjectKey = string.Empty;
+    private string newRoleName = string.Empty;
+    private string newRoleDescription = string.Empty;
+    private Guid? editingRoleId;
+    private string editingRoleDescription = string.Empty;
+
+    private List<SearchableSelectOption> resourceOptions = [];
+    private readonly List<SearchableSelectOption> subjectTypeOptions =
+    [
+        new("2", "نقش"),
+        new("1", "کاربر"),
+        new("0", "همه کاربران")
+    ];
+    private List<SearchableSelectOption> roleSelectOptions = [];
+    private List<SearchableSelectOption> userSelectOptions = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            PortalActor actor = await ActorFactory.CreateAsync();
+            await AccessAdministration.EnsureDefaultsAsync();
+            resourceOptions = PortalResources.All
+                .Select(resource => new SearchableSelectOption(resource.Key, $"{resource.Category} — {resource.Title}"))
+                .ToList();
+            await ReloadRolesAsync(actor);
+            await SearchUsersAsync();
+            grants = (await AccessAdministration.GetGrantsAsync(actor)).ToList();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            NavigationManager.NavigateTo("/account/access-denied");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ReloadRolesAsync(PortalActor actor)
+    {
+        roles = (await AccessAdministration.GetAssignableRolesAsync(actor)).ToList();
+        roleSelectOptions = roles
+            .Select(role => new SearchableSelectOption(role.Name, role.DisplayName))
+            .ToList();
+    }
+
+    private async Task SearchUsersAsync()
+    {
+        isBusy = true;
+        message = null;
+        try
+        {
+            PortalActor actor = await ActorFactory.CreateAsync();
+            users = (await AccessAdministration.SearchUsersAsync(actor, userSearch)).ToList();
+            userSelectOptions = users
+                .Select(user => new SearchableSelectOption(user.UserId.ToString("D"), $"{user.DisplayName} ({user.Upn})"))
+                .ToList();
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or InvalidOperationException)
+        {
+            messageClass = "error";
+            message = exception.Message;
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private void SelectUser(PortalUserAccessSummary user)
+    {
+        selectedUser = user;
+        personnelCodeDraft = user.PersonnelCode ?? string.Empty;
+        selectedRoles = user.Roles.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        selectedRoles.Add(PortalRoles.Employee);
+    }
+
+    private void ClearSelectedUser()
+    {
+        selectedUser = null;
+        personnelCodeDraft = string.Empty;
+        selectedRoles.Clear();
+    }
+
+    private void ToggleRole(string roleName, ChangeEventArgs args)
+    {
+        bool enabled = args.Value is true;
+        if (enabled)
+        {
+            selectedRoles.Add(roleName);
+        }
+        else if (!string.Equals(roleName, PortalRoles.Employee, StringComparison.OrdinalIgnoreCase))
+        {
+            selectedRoles.Remove(roleName);
+        }
+    }
+
+    private async Task SaveRolesAsync()
+    {
+        if (selectedUser is null) return;
+        isBusy = true; message = null;
+        try
+        {
+            PortalActor actor = await ActorFactory.CreateAsync();
+            await AccessAdministration.SetUserRolesAsync(actor, selectedUser.UserId, selectedRoles.ToArray());
+            messageClass = "success"; message = "نقش‌های کاربر ذخیره شد.";
+            await SearchUsersAsync();
+            PortalUserAccessSummary? refreshed = users.FirstOrDefault(item => item.UserId == selectedUser.UserId);
+            if (refreshed is not null) SelectUser(refreshed);
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or InvalidOperationException or KeyNotFoundException)
+        {
+            messageClass = "error"; message = exception.Message;
+        }
+        finally { isBusy = false; }
+    }
+
+    private async Task SavePersonnelCodeAsync()
+    {
+        if (selectedUser is null) return;
+        isBusy = true; message = null;
+        try
+        {
+            PortalActor actor = await ActorFactory.CreateAsync();
+            await AccessAdministration.SetPersonnelCodeAsync(actor, selectedUser.UserId, personnelCodeDraft);
+            messageClass = "success"; message = "کد پرسنلی ذخیره شد.";
+            await SearchUsersAsync();
+            PortalUserAccessSummary? refreshed = users.FirstOrDefault(item => item.UserId == selectedUser.UserId);
+            if (refreshed is not null) SelectUser(refreshed);
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or InvalidOperationException or KeyNotFoundException)
+        {
+            messageClass = "error"; message = exception.Message;
+        }
+        finally { isBusy = false; }
+    }
+
+    private void BeginRoleEdit(PortalRoleOption role)
+    {
+        editingRoleId = role.Id;
+        newRoleName = role.Name;
+        newRoleDescription = role.DisplayName;
+        editingRoleDescription = role.DisplayName;
+    }
+
+    private void CancelRoleEdit()
+    {
+        editingRoleId = null;
+        editingRoleDescription = string.Empty;
+        newRoleName = string.Empty;
+        newRoleDescription = string.Empty;
+    }
+
+    private async Task SaveRoleFormAsync()
+    {
+        isBusy = true; message = null;
+        try
+        {
+            PortalActor actor = await ActorFactory.CreateAsync();
+            if (editingRoleId is null)
+            {
+                await AccessAdministration.CreateRoleAsync(actor, newRoleName, newRoleDescription);
+                message = "نقش جدید ایجاد شد.";
+            }
+            else
+            {
+                await AccessAdministration.UpdateRoleAsync(actor, editingRoleId.Value, newRoleDescription);
+                message = "نقش به‌روزرسانی شد.";
+            }
+
+            CancelRoleEdit();
+            await ReloadRolesAsync(actor);
+            messageClass = "success";
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or InvalidOperationException or KeyNotFoundException)
+        {
+            messageClass = "error"; message = exception.Message;
+        }
+        finally { isBusy = false; }
+    }
+
+    private async Task DeleteRoleAsync(Guid roleId)
+    {
+        bool confirmed = await ConfirmationService.ConfirmAsync(
+            "حذف نقش؟",
+            "در صورت عدم تخصیص به کاربر، این نقش حذف می‌شود.",
+            "بله، حذف شود");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        isBusy = true; message = null;
+        try
+        {
+            PortalActor actor = await ActorFactory.CreateAsync();
+            await AccessAdministration.DeleteRoleAsync(actor, roleId);
+            if (editingRoleId == roleId)
+            {
+                CancelRoleEdit();
+            }
+
+            await ReloadRolesAsync(actor);
+            messageClass = "success"; message = "نقش حذف شد.";
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or InvalidOperationException or KeyNotFoundException)
+        {
+            messageClass = "error"; message = exception.Message;
+        }
+        finally { isBusy = false; }
+    }
+
+    private Task OnGrantResourceChanged(string? value)
+    {
+        grantResourceKey = value ?? string.Empty;
+        return Task.CompletedTask;
+    }
+
+    private Task OnGrantSubjectTypeChanged(string? value)
+    {
+        grantSubjectTypeValue = value ?? "2";
+        grantSubjectKey = string.Empty;
+        return Task.CompletedTask;
+    }
+
+    private Task OnGrantSubjectKeyChanged(string? value)
+    {
+        grantSubjectKey = value ?? string.Empty;
+        return Task.CompletedTask;
+    }
+
+    private async Task AddGrantAsync()
+    {
+        isBusy = true; message = null;
+        try
+        {
+            if (string.IsNullOrWhiteSpace(grantResourceKey))
+            {
+                throw new InvalidOperationException("منبع را انتخاب کنید.");
+            }
+
+            PortalAccessSubjectType subjectType = (PortalAccessSubjectType)int.Parse(grantSubjectTypeValue);
+            string subjectKey = subjectType == PortalAccessSubjectType.Everyone ? "*" : grantSubjectKey;
+            if (subjectType != PortalAccessSubjectType.Everyone && string.IsNullOrWhiteSpace(subjectKey))
+            {
+                throw new InvalidOperationException("موضوع دسترسی را مشخص کنید.");
+            }
+
+            PortalActor actor = await ActorFactory.CreateAsync();
+            await AccessAdministration.AddGrantAsync(actor, grantResourceKey, subjectType, subjectKey);
+            grants = (await AccessAdministration.GetGrantsAsync(actor)).ToList();
+            grantSubjectKey = string.Empty;
+            messageClass = "success"; message = "مجوز افزوده شد.";
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+        {
+            messageClass = "error"; message = exception.Message;
+        }
+        finally { isBusy = false; }
+    }
+
+    private async Task RemoveGrantAsync(Guid grantId)
+    {
+        bool confirmed = await ConfirmationService.ConfirmAsync(
+            "حذف مجوز؟",
+            "این مجوز بخش از فهرست دسترسی‌ها حذف می‌شود.",
+            "بله، حذف شود");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        isBusy = true; message = null;
+        try
+        {
+            PortalActor actor = await ActorFactory.CreateAsync();
+            await AccessAdministration.RemoveGrantAsync(actor, grantId);
+            grants = (await AccessAdministration.GetGrantsAsync(actor)).ToList();
+            messageClass = "success"; message = "مجوز حذف شد.";
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or KeyNotFoundException)
+        {
+            messageClass = "error"; message = exception.Message;
+        }
+        finally { isBusy = false; }
+    }
+
+    private static string GetSubjectTypeText(PortalAccessSubjectType subjectType) => subjectType switch
+    {
+        PortalAccessSubjectType.Everyone => "همه",
+        PortalAccessSubjectType.User => "کاربر",
+        PortalAccessSubjectType.Role => "نقش",
+        _ => subjectType.ToString()
+    };
+}

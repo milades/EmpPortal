@@ -1,8 +1,9 @@
 @page "/admin/forms"
-@attribute [Authorize]
+@attribute [Authorize(Policy = PortalResources.FormsAdminPolicy)]
 @implements IDisposable
 
 @using System.ComponentModel.DataAnnotations
+@using EmpPortal.Application.Authorization
 @using EmpPortal.Application.Forms
 @using EmpPortal.Application.Localization
 @using EmpPortal.Web.Components.Forms

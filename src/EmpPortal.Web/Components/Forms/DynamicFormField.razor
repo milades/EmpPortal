@@ -82,7 +82,7 @@
         case FormElementType.Checkbox:
         case FormElementType.Switch:
             <div class="dynamic-field @WidthClass">
-                <label class="dynamic-switch" for="@InputId">
+                <label class="polished-check dynamic-switch" for="@InputId">
                     <input id="@InputId" type="checkbox" role="@(Element.Type == FormElementType.Switch ? "switch" : null)"
                            checked="@BooleanValue" disabled="@Element.ReadOnly" @onchange="SetBooleanAsync" />
                     <span>@Element.Label @RequiredMark</span>

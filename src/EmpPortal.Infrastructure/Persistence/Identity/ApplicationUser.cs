@@ -10,6 +10,8 @@ public sealed class ApplicationUser : IdentityUser<Guid>
 
     public string DisplayName { get; set; } = string.Empty;
 
+    public string? PersonnelCode { get; set; }
+
     public bool IsDirectoryEnabled { get; set; } = true;
 
     public DateTimeOffset LastDirectoryValidationAtUtc { get; set; }

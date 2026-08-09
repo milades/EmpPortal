@@ -34,7 +34,7 @@ public static class PortalServiceCatalog
             "دسترسی به خلاصه پرونده پرسنلی، سوابق سازمانی و اطلاعات پایه کارکنان در یک نمای یکپارچه.",
             "/services/personnel",
             PortalServiceTone.Indigo,
-            IsAvailable: false),
+            IsAvailable: true),
         new(
             "security",
             "امنیت",
@@ -58,7 +58,7 @@ public static class PortalServiceCatalog
             "فهرست اموال و تجهیزات تحویل‌شده به شما به‌همراه وضعیت و جزئیات مرتبط.",
             "/services/assets",
             PortalServiceTone.Teal,
-            IsAvailable: false),
+            IsAvailable: true),
         new(
             "benefits",
             "تسهیلات من",
@@ -66,7 +66,7 @@ public static class PortalServiceCatalog
             "مشاهده تسهیلات فعال، وضعیت درخواست‌ها و مزایای قابل استفاده در سازمان.",
             "/services/benefits",
             PortalServiceTone.Violet,
-            IsAvailable: false),
+            IsAvailable: true),
         new(
             "payslip",
             "فیش حقوقی من",
@@ -79,10 +79,10 @@ public static class PortalServiceCatalog
             "payslip-settings",
             "تنظیمات فیش حقوقی",
             "ترجیحات نمایش فیش حقوقی",
-            "تنظیم نحوه نمایش، اعلان‌ها و ترجیحات مرتبط با دریافت فیش حقوقی در پرتال.",
+            "فعال یا غیرفعال کردن نمایش فیش حقوقی پرسنل بر اساس ماه و سال شمسی.",
             "/services/payslip-settings",
             PortalServiceTone.Blue,
-            IsAvailable: false),
+            IsAvailable: true),
         new(
             "charity",
             "انفاق",
@@ -90,7 +90,7 @@ public static class PortalServiceCatalog
             "شرکت در برنامه‌های انفاق سازمانی، ثبت مشارکت و پیگیری سوابق نیکوکاری.",
             "/services/charity",
             PortalServiceTone.Rose,
-            IsAvailable: false),
+            IsAvailable: true),
         new(
             "events",
             "ثبت‌نام‌ها و رویدادها",

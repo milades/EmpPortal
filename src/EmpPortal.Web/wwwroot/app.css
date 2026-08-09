@@ -40,9 +40,15 @@
 }
 
 .secondary-button .button-loading-spinner,
-.danger-button .button-loading-spinner {
+.danger-button .button-loading-spinner,
+.table-action .button-loading-spinner {
     border-color: rgba(71, 84, 103, .22);
     border-top-color: currentColor;
+}
+
+.table-action .button-loading-spinner {
+    height: .85rem;
+    width: .85rem;
 }
 
 button[aria-busy="true"],
@@ -1645,13 +1651,211 @@ button:disabled,
     background: #fff;
     border: 1px solid var(--border-color);
     border-radius: 1rem;
+    max-width: 100%;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .report-table {
     border-collapse: collapse;
     min-width: 50rem;
     width: 100%;
+}
+
+.dynamic-data-table {
+    min-width: max(100%, 64rem);
+}
+
+.dynamic-data-table th,
+.dynamic-data-table td {
+    white-space: nowrap;
+}
+
+.personnel-page,
+.charity-page {
+    display: grid;
+    gap: 1.25rem;
+}
+
+.personnel-panel {
+    background: #fff;
+    border: 1px solid #e4e7ec;
+    border-radius: 1rem;
+    display: grid;
+    gap: .85rem;
+    padding: 1.1rem 1.25rem;
+}
+
+.editor-panel {
+    background: #fff;
+    border: 1px solid #e4e7ec;
+    border-radius: 1rem;
+    display: grid;
+    gap: .9rem;
+    padding: 1.15rem 1.25rem;
+}
+
+.editor-panel-header {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+    justify-content: space-between;
+}
+
+.editor-panel-header h2,
+.editor-panel h3 {
+    margin: 0;
+}
+
+.editor-subtitle {
+    color: #667085;
+    margin: 0;
+}
+
+.editor-actions,
+.table-actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .55rem;
+}
+
+.table-action {
+    align-items: center;
+    border: 1px solid transparent;
+    border-radius: .65rem;
+    cursor: pointer;
+    display: inline-flex;
+    font-size: .78rem;
+    font-weight: 800;
+    gap: .3rem;
+    min-height: 2rem;
+    padding: .35rem .7rem;
+    transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.table-action.edit {
+    background: rgba(70, 95, 255, .08);
+    border-color: rgba(70, 95, 255, .18);
+    color: #364fc7;
+}
+
+.table-action.edit:hover {
+    background: rgba(70, 95, 255, .14);
+}
+
+.table-action.delete {
+    background: rgba(217, 45, 32, .06);
+    border-color: rgba(217, 45, 32, .16);
+    color: #b42318;
+}
+
+.table-action.delete:hover {
+    background: rgba(217, 45, 32, .12);
+}
+
+.table-action:disabled {
+    cursor: not-allowed;
+    opacity: .55;
+}
+
+.polished-check,
+.check-property,
+.rights-grid label:has(> input[type="checkbox"]),
+.access-rule .rights-grid label {
+    align-items: flex-start;
+    cursor: pointer;
+    display: flex;
+    gap: .7rem;
+    user-select: none;
+}
+
+.polished-check input[type="checkbox"],
+.check-property input[type="checkbox"],
+.rights-grid input[type="checkbox"],
+.access-rule input[type="checkbox"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: #fff;
+    border: 1.5px solid #cfd6e4;
+    border-radius: .45rem;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .8);
+    flex: 0 0 auto;
+    height: 1.2rem;
+    margin-top: .15rem;
+    position: relative;
+    transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+    width: 1.2rem;
+}
+
+.polished-check input[type="checkbox"]:hover,
+.check-property input[type="checkbox"]:hover,
+.rights-grid input[type="checkbox"]:hover,
+.access-rule input[type="checkbox"]:hover {
+    border-color: #93a4ff;
+}
+
+.polished-check input[type="checkbox"]:checked,
+.check-property input[type="checkbox"]:checked,
+.rights-grid input[type="checkbox"]:checked,
+.access-rule input[type="checkbox"]:checked {
+    background: linear-gradient(135deg, #465fff, #364fc7);
+    border-color: #364fc7;
+}
+
+.polished-check input[type="checkbox"]:checked::after,
+.check-property input[type="checkbox"]:checked::after,
+.rights-grid input[type="checkbox"]:checked::after,
+.access-rule input[type="checkbox"]:checked::after {
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    content: "";
+    height: .55rem;
+    left: .38rem;
+    position: absolute;
+    top: .16rem;
+    transform: rotate(45deg);
+    width: .28rem;
+}
+
+.polished-check input[type="checkbox"]:focus-visible,
+.check-property input[type="checkbox"]:focus-visible,
+.rights-grid input[type="checkbox"]:focus-visible,
+.access-rule input[type="checkbox"]:focus-visible {
+    box-shadow: 0 0 0 .2rem rgba(70, 95, 255, .18);
+    outline: none;
+}
+
+.polished-check input[type="checkbox"]:disabled,
+.check-property input[type="checkbox"]:disabled,
+.rights-grid input[type="checkbox"]:disabled,
+.access-rule input[type="checkbox"]:disabled {
+    cursor: not-allowed;
+    opacity: .55;
+}
+
+.polished-check span,
+.check-property {
+    color: #344054;
+    font-weight: 700;
+    line-height: 1.6;
+}
+
+.rights-grid .polished-check,
+.rights-grid label:has(> input[type="checkbox"]),
+.property-row .check-property {
+    align-items: center;
+}
+
+.property-row .check-property {
+    margin-top: 1.55rem;
+}
+
+.role-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .45rem;
 }
 
 .report-table th,
@@ -1869,6 +2073,114 @@ button:disabled,
 .empportal-cancel-button {
     background: #f2f4f7 !important;
     color: #344054 !important;
+}
+
+.access-admin-page,
+.payslip-settings-page,
+.tabular-service-page {
+    display: grid;
+    gap: 1.25rem;
+}
+
+.access-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+}
+
+.access-tabs button {
+    background: #fff;
+    border: 1px solid #e4e7ec;
+    border-radius: .7rem;
+    color: #475467;
+    cursor: pointer;
+    font-weight: 700;
+    padding: .65rem 1rem;
+}
+
+.access-tabs button.active {
+    background: rgba(70, 95, 255, .1);
+    border-color: #c7d2fe;
+    color: #364fc7;
+}
+
+.access-toolbar,
+.access-grant-form,
+.payslip-controls {
+    align-items: end;
+    display: grid;
+    gap: .85rem;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+}
+
+.access-layout {
+    align-items: start;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: minmax(0, 1.4fr) minmax(16rem, .9fr);
+}
+
+.access-editor {
+    background: #fff;
+    border: 1px solid #e4e7ec;
+    border-radius: 1rem;
+    display: grid;
+    gap: .75rem;
+    padding: 1rem;
+}
+
+.access-editor h2,
+.access-editor h3 {
+    margin: 0;
+}
+
+.rights-grid {
+    display: grid;
+    gap: .45rem;
+}
+
+.rights-grid label {
+    align-items: center;
+    display: flex;
+    gap: .45rem;
+}
+
+.report-table tr.is-selected {
+    background: rgba(70, 95, 255, .06);
+}
+
+.visibility-card {
+    align-items: center;
+    background: #fff;
+    border: 1px solid #e4e7ec;
+    border-radius: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: space-between;
+    padding: 1.1rem 1.25rem;
+}
+
+.visibility-card strong {
+    font-size: 1.05rem;
+}
+
+.toggle-switch {
+    align-items: center;
+    display: inline-flex;
+    gap: .65rem;
+}
+
+.access-denied-page {
+    margin: 2rem auto;
+    max-width: 32rem;
+    text-align: center;
+}
+
+@media (max-width: 64rem) {
+    .access-layout {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media print {

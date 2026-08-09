@@ -710,3 +710,249 @@ END;
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260809154239_AddPortalAccessPayslipAndPersonnelCode'
+)
+BEGIN
+    IF SCHEMA_ID(N'hr') IS NULL EXEC(N'CREATE SCHEMA [hr];');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260809154239_AddPortalAccessPayslipAndPersonnelCode'
+)
+BEGIN
+    ALTER TABLE [identity].[Users] ADD [PersonnelCode] nvarchar(64) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260809154239_AddPortalAccessPayslipAndPersonnelCode'
+)
+BEGIN
+    CREATE TABLE [hr].[PayslipPeriodSettings] (
+        [Id] uniqueidentifier NOT NULL,
+        [PersianYear] int NOT NULL,
+        [PersianMonth] int NOT NULL,
+        [IsVisibleToEmployees] bit NOT NULL,
+        [UpdatedByUserId] uniqueidentifier NOT NULL,
+        [UpdatedAtUtc] datetimeoffset NOT NULL,
+        CONSTRAINT [PK_PayslipPeriodSettings] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_PayslipPeriodSettings_Users_UpdatedByUserId] FOREIGN KEY ([UpdatedByUserId]) REFERENCES [identity].[Users] ([Id]) ON DELETE NO ACTION
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260809154239_AddPortalAccessPayslipAndPersonnelCode'
+)
+BEGIN
+    CREATE TABLE [security].[PortalAccessGrants] (
+        [Id] uniqueidentifier NOT NULL,
+        [ResourceKey] nvarchar(120) NOT NULL,
+        [SubjectType] int NOT NULL,
+        [SubjectKey] nvarchar(320) NOT NULL,
+        [CreatedByUserId] uniqueidentifier NOT NULL,
+        [CreatedAtUtc] datetimeoffset NOT NULL,
+        CONSTRAINT [PK_PortalAccessGrants] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_PortalAccessGrants_Users_CreatedByUserId] FOREIGN KEY ([CreatedByUserId]) REFERENCES [identity].[Users] ([Id]) ON DELETE NO ACTION
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260809154239_AddPortalAccessPayslipAndPersonnelCode'
+)
+BEGIN
+    EXEC(N'CREATE UNIQUE INDEX [IX_Users_PersonnelCode] ON [identity].[Users] ([PersonnelCode]) WHERE [PersonnelCode] IS NOT NULL');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260809154239_AddPortalAccessPayslipAndPersonnelCode'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_PayslipPeriodSettings_PersianYear_PersianMonth] ON [hr].[PayslipPeriodSettings] ([PersianYear], [PersianMonth]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260809154239_AddPortalAccessPayslipAndPersonnelCode'
+)
+BEGIN
+    CREATE INDEX [IX_PayslipPeriodSettings_UpdatedByUserId] ON [hr].[PayslipPeriodSettings] ([UpdatedByUserId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260809154239_AddPortalAccessPayslipAndPersonnelCode'
+)
+BEGIN
+    CREATE INDEX [IX_PortalAccessGrants_CreatedByUserId] ON [security].[PortalAccessGrants] ([CreatedByUserId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260809154239_AddPortalAccessPayslipAndPersonnelCode'
+)
+BEGIN
+    CREATE INDEX [IX_PortalAccessGrants_ResourceKey] ON [security].[PortalAccessGrants] ([ResourceKey]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260809154239_AddPortalAccessPayslipAndPersonnelCode'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_PortalAccessGrants_ResourceKey_SubjectType_SubjectKey] ON [security].[PortalAccessGrants] ([ResourceKey], [SubjectType], [SubjectKey]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260809154239_AddPortalAccessPayslipAndPersonnelCode'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260809154239_AddPortalAccessPayslipAndPersonnelCode', N'10.0.10');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260809173807_AddPersonnelCharityDynamicRoles'
+)
+BEGIN
+    ALTER TABLE [identity].[Roles] ADD [IsSystem] bit NOT NULL DEFAULT CAST(0 AS bit);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260809173807_AddPersonnelCharityDynamicRoles'
+)
+BEGIN
+    CREATE TABLE [hr].[CharityPledges] (
+        [Id] uniqueidentifier NOT NULL,
+        [UserId] uniqueidentifier NOT NULL,
+        [Amount] decimal(18,0) NOT NULL,
+        [Mode] int NOT NULL,
+        [StartPersianYear] int NOT NULL,
+        [StartPersianMonth] int NOT NULL,
+        [EndPersianYear] int NULL,
+        [EndPersianMonth] int NULL,
+        [Note] nvarchar(500) NULL,
+        [IsConfirmed] bit NOT NULL,
+        [ConfirmedAtUtc] datetimeoffset NULL,
+        [CreatedByUserId] uniqueidentifier NOT NULL,
+        [CreatedAtUtc] datetimeoffset NOT NULL,
+        [UpdatedByUserId] uniqueidentifier NOT NULL,
+        [UpdatedAtUtc] datetimeoffset NOT NULL,
+        CONSTRAINT [PK_CharityPledges] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_CharityPledges_Users_CreatedByUserId] FOREIGN KEY ([CreatedByUserId]) REFERENCES [identity].[Users] ([Id]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_CharityPledges_Users_UpdatedByUserId] FOREIGN KEY ([UpdatedByUserId]) REFERENCES [identity].[Users] ([Id]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_CharityPledges_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [identity].[Users] ([Id]) ON DELETE CASCADE
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260809173807_AddPersonnelCharityDynamicRoles'
+)
+BEGIN
+    CREATE TABLE [hr].[PersonnelProfiles] (
+        [UserId] uniqueidentifier NOT NULL,
+        [InternalPhone] nvarchar(32) NULL,
+        [UpdatedByUserId] uniqueidentifier NOT NULL,
+        [UpdatedAtUtc] datetimeoffset NOT NULL,
+        CONSTRAINT [PK_PersonnelProfiles] PRIMARY KEY ([UserId]),
+        CONSTRAINT [FK_PersonnelProfiles_Users_UpdatedByUserId] FOREIGN KEY ([UpdatedByUserId]) REFERENCES [identity].[Users] ([Id]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_PersonnelProfiles_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [identity].[Users] ([Id]) ON DELETE CASCADE
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260809173807_AddPersonnelCharityDynamicRoles'
+)
+BEGIN
+    CREATE TABLE [hr].[PersonnelVehicles] (
+        [Id] uniqueidentifier NOT NULL,
+        [UserId] uniqueidentifier NOT NULL,
+        [PlateNumber] nvarchar(32) NOT NULL,
+        [VehicleType] nvarchar(80) NOT NULL,
+        [Trim] nvarchar(80) NULL,
+        [Model] nvarchar(80) NULL,
+        [Color] nvarchar(40) NULL,
+        [Notes] nvarchar(500) NULL,
+        [UpdatedByUserId] uniqueidentifier NOT NULL,
+        [UpdatedAtUtc] datetimeoffset NOT NULL,
+        CONSTRAINT [PK_PersonnelVehicles] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_PersonnelVehicles_Users_UpdatedByUserId] FOREIGN KEY ([UpdatedByUserId]) REFERENCES [identity].[Users] ([Id]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_PersonnelVehicles_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [identity].[Users] ([Id]) ON DELETE CASCADE
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260809173807_AddPersonnelCharityDynamicRoles'
+)
+BEGIN
+    CREATE INDEX [IX_CharityPledges_CreatedByUserId] ON [hr].[CharityPledges] ([CreatedByUserId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260809173807_AddPersonnelCharityDynamicRoles'
+)
+BEGIN
+    CREATE INDEX [IX_CharityPledges_UpdatedByUserId] ON [hr].[CharityPledges] ([UpdatedByUserId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260809173807_AddPersonnelCharityDynamicRoles'
+)
+BEGIN
+    CREATE INDEX [IX_CharityPledges_UserId_CreatedAtUtc] ON [hr].[CharityPledges] ([UserId], [CreatedAtUtc]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260809173807_AddPersonnelCharityDynamicRoles'
+)
+BEGIN
+    CREATE INDEX [IX_PersonnelProfiles_UpdatedByUserId] ON [hr].[PersonnelProfiles] ([UpdatedByUserId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260809173807_AddPersonnelCharityDynamicRoles'
+)
+BEGIN
+    CREATE INDEX [IX_PersonnelVehicles_UpdatedByUserId] ON [hr].[PersonnelVehicles] ([UpdatedByUserId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260809173807_AddPersonnelCharityDynamicRoles'
+)
+BEGIN
+    CREATE INDEX [IX_PersonnelVehicles_UserId] ON [hr].[PersonnelVehicles] ([UserId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260809173807_AddPersonnelCharityDynamicRoles'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260809173807_AddPersonnelCharityDynamicRoles', N'10.0.10');
+END;
+
+COMMIT;
+GO
+

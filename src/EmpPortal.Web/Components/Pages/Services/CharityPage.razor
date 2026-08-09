@@ -1,0 +1,292 @@
+@page "/services/charity"
+@attribute [Authorize(Policy = PortalResources.CharityViewPolicy)]
+
+@using System.Globalization
+@using EmpPortal.Application.Authorization
+@using EmpPortal.Application.Hr
+@using EmpPortal.Application.Localization
+@using EmpPortal.Domain.Hr
+@using EmpPortal.Web.Security
+@using Microsoft.AspNetCore.Authorization
+
+@inject ICharityPledgeService CharityPledgeService
+@inject PortalActorFactory ActorFactory
+@inject NavigationManager NavigationManager
+@inject EmpPortal.Web.Services.IConfirmationService ConfirmationService
+
+<PageTitle>انفاق | پرتال کارمندی</PageTitle>
+
+<section class="charity-page" aria-labelledby="charity-title">
+    <header class="page-heading">
+        <div>
+            <span class="eyebrow">خدمات کارکنان</span>
+            <h1 id="charity-title">انفاق از حقوق</h1>
+            <p>با خوداظهاری اعلام کنید چه مبلغی، برای کدام ماه یا بازه ماهانه، از حقوق شما انفاق شود.</p>
+        </div>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <div class="form-notice @messageClass" role="status">@message</div>
+    }
+
+    <div class="editor-panel">
+        <header class="editor-panel-header">
+            <h2>ثبت انفاق جدید</h2>
+        </header>
+        <div class="payslip-controls">
+            <label>مبلغ (تومان)
+                <input class="form-control polished-input" type="number" min="1" @bind="amount" />
+            </label>
+            <label>نوع اعلام
+                <SearchableSelect Options="modeOptions" Value="@modeValue" ValueChanged="OnModeChanged" Placeholder="نوع انفاق" />
+            </label>
+            <label>سال شروع
+                <SearchableSelect Options="yearOptions" Value="@startYearValue" ValueChanged="OnStartYearChanged" />
+            </label>
+            <label>ماه شروع
+                <SearchableSelect Options="monthOptions" Value="@startMonthValue" ValueChanged="OnStartMonthChanged" />
+            </label>
+            @if (modeValue == "2")
+            {
+                <label>سال پایان
+                    <SearchableSelect Options="yearOptions" Value="@endYearValue" ValueChanged="OnEndYearChanged" />
+                </label>
+                <label>ماه پایان
+                    <SearchableSelect Options="monthOptions" Value="@endMonthValue" ValueChanged="OnEndMonthChanged" />
+                </label>
+            }
+            <label>یادداشت
+                <input class="form-control polished-input" @bind="note" maxlength="500" />
+            </label>
+        </div>
+        <label class="polished-check">
+            <input type="checkbox" @bind="confirmed" />
+            <span>خوداظهاری می‌کنم و صحت اعلام انفاق را تأیید می‌نمایم.</span>
+        </label>
+        <div class="editor-actions">
+            <button type="button" class="primary-button" disabled="@isBusy" @onclick="SubmitAsync">ثبت و تأیید انفاق</button>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="loading-panel" role="status">در حال دریافت سوابق…</div>
+    }
+    else if (pledges.Count == 0)
+    {
+        <div class="empty-state"><h2>سابقه‌ای ثبت نشده</h2><p>اولین اعلام انفاق را از فرم بالا ثبت کنید.</p></div>
+    }
+    else
+    {
+        <div class="report-table-wrap">
+            <table class="report-table dynamic-data-table">
+                <thead>
+                    <tr><th>مبلغ</th><th>نوع</th><th>بازه</th><th>وضعیت</th><th>زمان ثبت</th><th>یادداشت</th><th>عملیات</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (CharityPledgeData pledge in pledges)
+                    {
+                        <tr>
+                            <td>@pledge.Amount.ToString("N0", CultureInfo.InvariantCulture)</td>
+                            <td>@(pledge.Mode == CharityPledgeMode.OneTime ? "یک‌بار" : "بازه ماهانه")</td>
+                            <td>@FormatPeriod(pledge)</td>
+                            <td>@(pledge.IsConfirmed ? "تأییدشده" : "پیش‌نویس")</td>
+                            <td>@PersianDateTimeFormatter.FormatDateTime(pledge.CreatedAtUtc)</td>
+                            <td>@(pledge.Note ?? "—")</td>
+                            <td>
+                                <div class="table-actions">
+                                    <AsyncActionButton CssClass="table-action delete" Disabled="@isBusy" LoadingText="در حال حذف…" OnClick="@(() => DeleteAsync(pledge.Id))">حذف</AsyncActionButton>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@code {
+    private readonly List<SearchableSelectOption> modeOptions =
+    [
+        new("1", "یک‌بار از حقوق یک ماه مشخص"),
+        new("2", "ماهیانه در یک بازه ماه/سال")
+    ];
+    private List<SearchableSelectOption> yearOptions = [];
+    private List<SearchableSelectOption> monthOptions = [];
+    private List<CharityPledgeData> pledges = [];
+    private bool isLoading = true;
+    private bool isBusy;
+    private string? message;
+    private string messageClass = "success";
+    private decimal amount = 100000;
+    private string modeValue = "1";
+    private string startYearValue = string.Empty;
+    private string startMonthValue = string.Empty;
+    private string endYearValue = string.Empty;
+    private string endMonthValue = string.Empty;
+    private string? note;
+    private bool confirmed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        PersianCalendar calendar = new();
+        DateTime today = DateTime.Today;
+        int currentYear = calendar.GetYear(today);
+        int currentMonth = calendar.GetMonth(today);
+        for (int year = currentYear - 1; year <= currentYear + 2; year++)
+        {
+            yearOptions.Add(new SearchableSelectOption(
+                year.ToString(CultureInfo.InvariantCulture),
+                PersianDateTimeFormatter.ToPersianDigits(year.ToString(CultureInfo.InvariantCulture))));
+        }
+
+        for (int month = 1; month <= 12; month++)
+        {
+            monthOptions.Add(new SearchableSelectOption(
+                month.ToString(CultureInfo.InvariantCulture),
+                PersianDateTimeFormatter.MonthNames[month - 1]));
+        }
+
+        startYearValue = currentYear.ToString(CultureInfo.InvariantCulture);
+        startMonthValue = currentMonth.ToString(CultureInfo.InvariantCulture);
+        endYearValue = startYearValue;
+        endMonthValue = Math.Min(12, currentMonth + 2).ToString(CultureInfo.InvariantCulture);
+
+        try
+        {
+            await ReloadAsync();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            NavigationManager.NavigateTo("/account/access-denied");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ReloadAsync()
+    {
+        PortalActor actor = await ActorFactory.CreateAsync();
+        pledges = (await CharityPledgeService.ListMineAsync(actor)).ToList();
+    }
+
+    private Task OnModeChanged(string? value)
+    {
+        modeValue = value ?? "1";
+        return Task.CompletedTask;
+    }
+
+    private Task OnStartYearChanged(string? value)
+    {
+        startYearValue = value ?? string.Empty;
+        return Task.CompletedTask;
+    }
+
+    private Task OnStartMonthChanged(string? value)
+    {
+        startMonthValue = value ?? string.Empty;
+        return Task.CompletedTask;
+    }
+
+    private Task OnEndYearChanged(string? value)
+    {
+        endYearValue = value ?? string.Empty;
+        return Task.CompletedTask;
+    }
+
+    private Task OnEndMonthChanged(string? value)
+    {
+        endMonthValue = value ?? string.Empty;
+        return Task.CompletedTask;
+    }
+
+    private async Task SubmitAsync()
+    {
+        isBusy = true; message = null;
+        try
+        {
+            PortalActor actor = await ActorFactory.CreateAsync();
+            CharityPledgeMode mode = modeValue == "2" ? CharityPledgeMode.MonthlyRange : CharityPledgeMode.OneTime;
+            int startYear = int.Parse(startYearValue, CultureInfo.InvariantCulture);
+            int startMonth = int.Parse(startMonthValue, CultureInfo.InvariantCulture);
+            int? endYear = mode == CharityPledgeMode.MonthlyRange
+                ? int.Parse(endYearValue, CultureInfo.InvariantCulture)
+                : null;
+            int? endMonth = mode == CharityPledgeMode.MonthlyRange
+                ? int.Parse(endMonthValue, CultureInfo.InvariantCulture)
+                : null;
+
+            await CharityPledgeService.CreateAsync(
+                actor,
+                amount,
+                mode,
+                startYear,
+                startMonth,
+                endYear,
+                endMonth,
+                note,
+                confirmed);
+            confirmed = false;
+            note = null;
+            await ReloadAsync();
+            messageClass = "success";
+            message = "اعلام انفاق با موفقیت ثبت و تأیید شد.";
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or InvalidOperationException or ArgumentException or ArgumentOutOfRangeException or FormatException)
+        {
+            messageClass = "error";
+            message = exception.Message;
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task DeleteAsync(Guid pledgeId)
+    {
+        bool ok = await ConfirmationService.ConfirmAsync(
+            "حذف اعلام انفاق؟",
+            "این سابقه از فهرست انفاق‌های شما حذف می‌شود.",
+            "بله، حذف شود");
+        if (!ok)
+        {
+            return;
+        }
+
+        isBusy = true; message = null;
+        try
+        {
+            PortalActor actor = await ActorFactory.CreateAsync();
+            await CharityPledgeService.DeleteAsync(actor, pledgeId);
+            await ReloadAsync();
+            messageClass = "success";
+            message = "اعلام انفاق حذف شد.";
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or KeyNotFoundException)
+        {
+            messageClass = "error";
+            message = exception.Message;
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private static string FormatPeriod(CharityPledgeData pledge)
+    {
+        string start = $"{PersianDateTimeFormatter.MonthNames[pledge.StartPersianMonth - 1]} {PersianDateTimeFormatter.ToPersianDigits(pledge.StartPersianYear.ToString(CultureInfo.InvariantCulture))}";
+        if (pledge.Mode == CharityPledgeMode.OneTime || pledge.EndPersianYear is null || pledge.EndPersianMonth is null)
+        {
+            return start;
+        }
+
+        string end = $"{PersianDateTimeFormatter.MonthNames[pledge.EndPersianMonth.Value - 1]} {PersianDateTimeFormatter.ToPersianDigits(pledge.EndPersianYear.Value.ToString(CultureInfo.InvariantCulture))}";
+        return $"{start} تا {end}";
+    }
+}

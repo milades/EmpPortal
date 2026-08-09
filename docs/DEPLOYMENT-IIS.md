@@ -120,3 +120,9 @@ Restart-WebAppPool -Name 'EmpPortal'
 
 برای Rollback، binding IIS به پوشه Artifact قبلی برمی‌گردد. Rollback دیتابیس فقط مطابق
 اسکریپت و Backup تأییدشده DBA انجام می‌شود؛ Downgrade خودکار Migration وجود ندارد.
+
+راهنمای آموزشی گام‌به‌گام ۰ تا ۱۰۰ (نیازمندی‌ها، بسته انتشار، Cutover و عیب‌یابی) در
+`docs/PRODUCTION-OFFLINE-ROLLOUT.md` آمده است.
+
+فرم تکمیل‌شونده عملیاتی (با پر کردن کامل آن ابهام‌ها رفع و Go/No-Go صادر می‌شود) در
+`docs/PRODUCTION-FILLABLE-CHECKLIST.md` است.

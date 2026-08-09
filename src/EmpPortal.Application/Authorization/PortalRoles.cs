@@ -18,4 +18,18 @@ public static class PortalRoles
 
     public const string FormReportingRoles =
         SystemAdministrator + "," + FormAdministrator + "," + SubmissionViewer + "," + ReportExporter;
+
+    public static IReadOnlyList<(string Name, string Description)> SystemRoleSeed { get; } =
+    [
+        (Employee, "کاربر عادی پرتال"),
+        (SystemAdministrator, "مدیر کل سامانه"),
+        (FormAdministrator, "مدیر فرم‌ها"),
+        (FormDesigner, "طراح فرم"),
+        (FormPublisher, "منتشرکننده فرم"),
+        (SubmissionViewer, "مشاهده‌کننده پاسخ فرم‌ها"),
+        (ReportExporter, "دریافت‌کننده خروجی گزارش‌ها")
+    ];
+
+    public static bool IsSystemRoleName(string roleName) =>
+        SystemRoleSeed.Any(role => string.Equals(role.Name, roleName, StringComparison.OrdinalIgnoreCase));
 }

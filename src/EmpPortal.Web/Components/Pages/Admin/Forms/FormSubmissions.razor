@@ -1,7 +1,8 @@
 @page "/admin/forms/{FormId:guid}/submissions"
-@attribute [Authorize]
+@attribute [Authorize(Policy = PortalResources.FormsAdminPolicy)]
 
 @using System.Globalization
+@using EmpPortal.Application.Authorization
 @using EmpPortal.Application.Forms
 @using EmpPortal.Application.Localization
 @using EmpPortal.Domain.Forms
@@ -19,7 +20,12 @@
 
     <div class="report-filters">
         <label>جست‌وجو<input class="form-control polished-input" placeholder="کد رهگیری، نام یا UPN" @bind="search" @bind:event="oninput" /></label>
-        <label>وضعیت<select class="form-select polished-input" @bind="statusValue"><option value="">همه</option><option value="0">پیش‌نویس</option><option value="1">ثبت نهایی</option><option value="2">پس‌گرفته‌شده</option></select></label>
+        <label>وضعیت
+            <SearchableSelect Options="statusOptions"
+                              Value="@statusValue"
+                              ValueChanged="OnStatusChanged"
+                              Placeholder="همه" />
+        </label>
         <label>از تاریخ<PersianTemporalInput AriaLabel="از تاریخ" Mode="PersianTemporalMode.Date" Value="@fromDate" ValueChanged="SetFromDateAsync" YearsBack="10" YearsForward="1" /></label>
         <label>تا تاریخ<PersianTemporalInput AriaLabel="تا تاریخ" Mode="PersianTemporalMode.Date" Value="@toDate" ValueChanged="SetToDateAsync" YearsBack="10" YearsForward="1" /></label>
         <AsyncActionButton CssClass="secondary-button" Disabled="@isLoading" LoadingText="در حال اعمال…" OnClick="ApplyFiltersAsync">اعمال فیلتر</AsyncActionButton>
@@ -56,6 +62,13 @@
     private const int PageSize = 25;
     private string? search;
     private string statusValue = string.Empty;
+    private readonly List<SearchableSelectOption> statusOptions =
+    [
+        new(string.Empty, "همه"),
+        new("0", "پیش‌نویس"),
+        new("1", "ثبت نهایی"),
+        new("2", "پس‌گرفته‌شده")
+    ];
     private string fromDate = string.Empty;
     private string toDate = string.Empty;
     private bool isLoading = true;
@@ -80,6 +93,7 @@
     private static string FormatDate(DateTimeOffset? value)=>PersianDateTimeFormatter.FormatDateTime(value);
     private Task SetFromDateAsync(string value){fromDate=value;return Task.CompletedTask;}
     private Task SetToDateAsync(string value){toDate=value;return Task.CompletedTask;}
+    private Task OnStatusChanged(string? value){statusValue=value??string.Empty;return Task.CompletedTask;}
     private async Task ApplyFiltersAsync(){page=1;await LoadAsync();}
     private async Task PreviousPageAsync(){if(page>1){page--;await LoadAsync();}}
     private async Task NextPageAsync(){if(page<TotalPages){page++;await LoadAsync();}}

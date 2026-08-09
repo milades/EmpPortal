@@ -1,7 +1,8 @@
 @page "/admin/submissions/{SubmissionId:guid}"
-@attribute [Authorize]
+@attribute [Authorize(Policy = PortalResources.FormsAdminPolicy)]
 
 @using System.Text.Json
+@using EmpPortal.Application.Authorization
 @using EmpPortal.Application.Forms
 @using EmpPortal.Application.Localization
 @using EmpPortal.Application.Forms.Schema

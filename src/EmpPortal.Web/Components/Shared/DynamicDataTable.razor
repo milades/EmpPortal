@@ -1,0 +1,82 @@
+@using EmpPortal.Application.Tabular
+@using System.Globalization
+
+@if (Data is null)
+{
+    <div class="empty-state"><h2>داده‌ای برای نمایش نیست</h2></div>
+}
+else if (Data.Columns.Count == 0)
+{
+    <div class="empty-state"><h2>ستونی در خروجی یافت نشد</h2><p>View یا منبع داده ستونی برنگرداند.</p></div>
+}
+else if (Data.Rows.Count == 0)
+{
+    <div class="empty-state"><h2>ردیفی یافت نشد</h2><p>@EmptyMessage</p></div>
+}
+else
+{
+    <div class="report-table-wrap">
+        <table class="report-table dynamic-data-table">
+            <thead>
+                <tr>
+                    @foreach (string column in Data.Columns)
+                    {
+                        <th scope="col">@column</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (IReadOnlyList<object?> row in Data.Rows)
+                {
+                    <tr>
+                        @for (int index = 0; index < Data.Columns.Count; index++)
+                        {
+                            <td>@FormatCell(index < row.Count ? row[index] : null)</td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <footer class="pagination">
+        <span>نمایش @Data.Rows.Count از @Data.TotalCount ردیف</span>
+        @if (ShowPagination)
+        {
+            <div>
+                <button type="button" class="secondary-button small" disabled="@(!CanPrevious || IsBusy)" @onclick="OnPrevious">قبلی</button>
+                <span>صفحه @Page</span>
+                <button type="button" class="secondary-button small" disabled="@(!CanNext || IsBusy)" @onclick="OnNext">بعدی</button>
+            </div>
+        }
+    </footer>
+}
+
+@code {
+    [Parameter] public TabularDataSet? Data { get; set; }
+    [Parameter] public string EmptyMessage { get; set; } = "برای این کاربر داده‌ای ثبت نشده است.";
+    [Parameter] public int Page { get; set; } = 1;
+    [Parameter] public int PageSize { get; set; } = 50;
+    [Parameter] public bool IsBusy { get; set; }
+    [Parameter] public EventCallback PreviousRequested { get; set; }
+    [Parameter] public EventCallback NextRequested { get; set; }
+
+    private bool ShowPagination => Data is not null && Data.TotalCount > PageSize;
+    private bool CanPrevious => Page > 1;
+    private bool CanNext => Data is not null && Page * PageSize < Data.TotalCount;
+
+    private Task OnPrevious() => PreviousRequested.InvokeAsync();
+    private Task OnNext() => NextRequested.InvokeAsync();
+
+    private static string FormatCell(object? value) => value switch
+    {
+        null => "—",
+        DateTime dateTime => dateTime.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture),
+        DateTimeOffset dateTimeOffset => dateTimeOffset.LocalDateTime.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture),
+        DateOnly dateOnly => dateOnly.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture),
+        decimal number => number.ToString("N0", CultureInfo.InvariantCulture),
+        double number => number.ToString("N2", CultureInfo.InvariantCulture),
+        float number => number.ToString("N2", CultureInfo.InvariantCulture),
+        bool flag => flag ? "بله" : "خیر",
+        _ => Convert.ToString(value, CultureInfo.InvariantCulture) ?? "—"
+    };
+}

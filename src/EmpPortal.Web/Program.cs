@@ -1,22 +1,29 @@
 using System.Security.Claims;
 using System.Threading.RateLimiting;
+using EmpPortal.Application.Authorization;
 using EmpPortal.Application.Configuration;
 using EmpPortal.Application.Forms;
+using EmpPortal.Application.Hr;
 using EmpPortal.Application.Identity;
 using EmpPortal.Application.Security;
+using EmpPortal.Application.Tabular;
+using EmpPortal.Infrastructure.Access;
 using EmpPortal.Infrastructure.Configuration;
 using EmpPortal.Infrastructure.Forms;
+using EmpPortal.Infrastructure.Hr;
 using EmpPortal.Infrastructure.Identity;
 using EmpPortal.Infrastructure.Persistence;
 using EmpPortal.Infrastructure.Persistence.Identity;
+using EmpPortal.Infrastructure.Tabular;
+using EmpPortal.Web.Authorization;
 using EmpPortal.Web.Components;
 using EmpPortal.Web.Components.Account;
 using EmpPortal.Web.Security;
 using EmpPortal.Web.Services;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.Negotiate;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.AspNetCore.DataProtection;
@@ -180,14 +187,31 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("ApiAccess", policy =>
         policy.AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
             .RequireAuthenticatedUser());
+
+    foreach (PortalResourceDefinition resource in PortalResources.All)
+    {
+        options.AddPolicy(
+            PortalResources.PolicyName(resource.Key),
+            policy => policy.Requirements.Add(new PortalResourceRequirement(resource.Key)));
+    }
 });
+builder.Services.AddScoped<IAuthorizationHandler, PortalResourceAuthorizationHandler>();
 builder.Services.AddScoped<IPortalSignInService, IdentityPortalSignInService>();
 builder.Services.AddScoped<IPortalSignOutService, IdentityPortalSignOutService>();
 builder.Services.AddScoped<IRuntimeSettingsService, RuntimeSettingsService>();
 builder.Services.AddScoped<IFormManagementService, FormManagementService>();
 builder.Services.AddScoped<IFormSubmissionService, FormSubmissionService>();
 builder.Services.AddScoped<IFormReportingService, FormReportingService>();
+builder.Services.AddScoped<IPortalAccessEvaluator, PortalAccessEvaluator>();
+builder.Services.AddScoped<IPortalAccessAdministrationService, PortalAccessAdministrationService>();
+builder.Services.AddScoped<IPayslipSettingsService, PayslipSettingsService>();
+builder.Services.AddScoped<IPersonnelFileService, PersonnelFileService>();
+builder.Services.AddScoped<ICharityPledgeService, CharityPledgeService>();
+builder.Services.AddScoped<IEmployeeTabularQuery, EmployeeTabularQuery>();
+builder.Services.Configure<ExternalTabularSourceOptions>(
+    builder.Configuration.GetSection(ExternalTabularSourceOptions.SectionName));
 builder.Services.AddScoped<FormActorFactory>();
+builder.Services.AddScoped<PortalActorFactory>();
 builder.Services.AddScoped<IConfirmationService, SweetAlertConfirmationService>();
 builder.Services.AddOptions<FormPdfOptions>()
     .BindConfiguration(FormPdfOptions.SectionName)

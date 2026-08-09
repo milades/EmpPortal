@@ -1,0 +1,12 @@
+@page "/account/access-denied"
+@attribute [AllowAnonymous]
+
+@using Microsoft.AspNetCore.Authorization
+
+<PageTitle>عدم دسترسی | پرتال کارمندی</PageTitle>
+
+<section class="empty-state access-denied-page" aria-labelledby="access-denied-title">
+    <h1 id="access-denied-title">دسترسی مجاز نیست</h1>
+    <p>برای مشاهده این بخش مجوز لازم را ندارید. در صورت نیاز با مدیر سامانه هماهنگ کنید.</p>
+    <a class="primary-button" href="/">بازگشت به داشبورد</a>
+</section>
