@@ -19,42 +19,37 @@ public sealed record PortalServiceDefinition(
     string LongDescription,
     string Href,
     PortalServiceTone Tone,
-    bool IsAvailable);
+    bool IsAvailable,
+    bool OpensInNewTab = false);
 
 public static class PortalServiceCatalog
 {
     public const string FormsHref = "/forms";
+    public const string FoodKey = "food";
 
     public static IReadOnlyList<PortalServiceDefinition> All { get; } =
     [
         new(
             "personnel",
             "پرونده پرسنلی",
-            "مشاهده و پیگیری اطلاعات پرسنلی",
+            "اطلاعات پرسنلی",
             "دسترسی به خلاصه پرونده پرسنلی، سوابق سازمانی و اطلاعات پایه کارکنان در یک نمای یکپارچه.",
             "/services/personnel",
             PortalServiceTone.Indigo,
             IsAvailable: true),
         new(
-            "security",
-            "امنیت",
-            "امنیت حساب و نشست‌های پرتال",
-            "مدیریت امنیت حساب کاربری، نشست‌های فعال و هشدارهای امنیتی مرتبط با دسترسی به پرتال.",
-            "/services/security",
-            PortalServiceTone.Slate,
-            IsAvailable: false),
-        new(
             "food",
             "رزرو غذا",
-            "رزرو وعده‌های غذایی سازمانی",
-            "انتخاب و رزرو وعده‌های غذایی، مشاهده برنامه روزانه و پیگیری رزروهای ثبت‌شده.",
+            "سامانه خارجی",
+            "ورود به سامانه خارجی رزرو وعده‌های غذایی سازمانی.",
             "/services/food",
             PortalServiceTone.Amber,
-            IsAvailable: false),
+            IsAvailable: true,
+            OpensInNewTab: true),
         new(
             "assets",
             "اموال من",
-            "اموال و تجهیزات تحویلی",
+            "تجهیزات تحویلی",
             "فهرست اموال و تجهیزات تحویل‌شده به شما به‌همراه وضعیت و جزئیات مرتبط.",
             "/services/assets",
             PortalServiceTone.Teal,
@@ -62,7 +57,7 @@ public static class PortalServiceCatalog
         new(
             "benefits",
             "تسهیلات من",
-            "تسهیلات و مزایای سازمانی",
+            "مزایای سازمانی",
             "مشاهده تسهیلات فعال، وضعیت درخواست‌ها و مزایای قابل استفاده در سازمان.",
             "/services/benefits",
             PortalServiceTone.Violet,
@@ -70,15 +65,15 @@ public static class PortalServiceCatalog
         new(
             "payslip",
             "فیش حقوقی من",
-            "مشاهده فیش حقوقی",
+            "فیش دوره‌ای",
             "دسترسی به فیش‌های حقوقی دوره‌ای و جزئیات پرداخت به‌صورت امن در شبکه داخلی.",
             "/services/payslip",
             PortalServiceTone.Green,
-            IsAvailable: false),
+            IsAvailable: true),
         new(
             "payslip-settings",
             "تنظیمات فیش حقوقی",
-            "ترجیحات نمایش فیش حقوقی",
+            "نمایش دوره‌ها",
             "فعال یا غیرفعال کردن نمایش فیش حقوقی پرسنل بر اساس ماه و سال شمسی.",
             "/services/payslip-settings",
             PortalServiceTone.Blue,
@@ -86,15 +81,23 @@ public static class PortalServiceCatalog
         new(
             "charity",
             "انفاق",
-            "مشارکت در برنامه‌های انفاق",
+            "خوداظهاری",
             "شرکت در برنامه‌های انفاق سازمانی، ثبت مشارکت و پیگیری سوابق نیکوکاری.",
             "/services/charity",
             PortalServiceTone.Rose,
             IsAvailable: true),
         new(
+            "charity-admin",
+            "مدیریت انفاق",
+            "خروجی و حذف",
+            "مشاهده ثبت‌نام‌های انفاق، دریافت خروجی اکسل و حذف در صورت نیاز.",
+            "/services/charity-admin",
+            PortalServiceTone.Rose,
+            IsAvailable: true),
+        new(
             "events",
             "ثبت‌نام‌ها و رویدادها",
-            "ثبت‌نام جشنواره، کنسرت، جشن و برنامه‌ها",
+            "فرم‌های سازمانی",
             "فرم‌های منتشرشده توسط مدیریت پرتال برای ثبت‌نام در رویدادها، جشن‌ها، برنامه‌ها و سایر درخواست‌های سازمانی.",
             FormsHref,
             PortalServiceTone.Blue,

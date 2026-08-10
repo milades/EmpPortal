@@ -1,0 +1,72 @@
+@page "/services/food"
+@attribute [Authorize]
+
+@using EmpPortal.Application.Authorization
+@using EmpPortal.Application.Configuration
+@using EmpPortal.Web.Security
+@using Microsoft.AspNetCore.Authorization
+
+@inject IRuntimeSettingsService RuntimeSettings
+@inject PortalActorFactory ActorFactory
+@inject IPortalAccessEvaluator AccessEvaluator
+@inject NavigationManager NavigationManager
+
+<PageTitle>رزرو غذا | پرتال کارمندی</PageTitle>
+
+<section class="tabular-service-page" aria-labelledby="food-title">
+    <header class="page-heading">
+        <div>
+            <span class="eyebrow">خدمات کارکنان</span>
+            <h1 id="food-title">رزرو غذا</h1>
+            <p>سامانه رزرو غذا در یک سرویس خارجی ارائه می‌شود.</p>
+        </div>
+    </header>
+
+    @if (isLoading)
+    {
+        <div class="loading-panel" role="status">در حال دریافت نشانی رزرو غذا…</div>
+    }
+    else if (string.IsNullOrWhiteSpace(foodUrl))
+    {
+        <div class="empty-state">
+            <h2>نشانی رزرو غذا تنظیم نشده است</h2>
+            <p>مدیر سامانه می‌تواند آدرس را از بخش تنظیمات عملیاتی مشخص کند.</p>
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">
+            <h2>انتقال به سامانه رزرو غذا</h2>
+            <p>برای ادامه، سامانه خارجی در تب جدید مرورگر باز می‌شود.</p>
+            <p><a class="primary-button" href="@foodUrl" target="_blank" rel="noopener noreferrer">باز کردن رزرو غذا</a></p>
+        </div>
+    }
+</section>
+
+@code {
+    private bool isLoading = true;
+    private string? foodUrl;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            PortalActor actor = await ActorFactory.CreateAsync();
+            if (!await AccessEvaluator.HasAccessAsync(actor, PortalResources.FoodView))
+            {
+                NavigationManager.NavigateTo("/account/access-denied");
+                return;
+            }
+
+            foodUrl = await RuntimeSettings.GetValueAsync(PortalRuntimeSettingKeys.FoodReservationExternalUrl);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            NavigationManager.NavigateTo("/account/access-denied");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

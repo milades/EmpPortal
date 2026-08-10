@@ -120,7 +120,7 @@
                                         {
                                             FormElementDefinition canvasElement = section.Elements[elementIndex];
                                             int capturedIndex = elementIndex;
-                                            <article class="canvas-element @(selectedElementId == canvasElement.Id ? "selected" : null)" draggable="true"
+                                            <article class="canvas-element @(IsCanvasElementSelected(canvasElement) ? "selected" : null)" draggable="true"
                                                      @ondragstart="() => BeginElementDrag(section.Id, canvasElement.Id)" @ondragover:preventDefault
                                                      @ondrop:stopPropagation @ondrop="() => DropBefore(section.Id, capturedIndex)" @onclick:stopPropagation @onclick="() => SelectElement(canvasElement.Id)">
                                                 <div class="drag-handle" aria-hidden="true">⋮⋮</div>
@@ -140,6 +140,10 @@
                     @if (SelectedElement is FormElementDefinition element)
                     {
                         <header><div><small>تنظیمات المنت</small><h2>@FormUiText.ElementType(element.Type)</h2></div><div><button type="button" class="icon-button danger" title="حذف المنت" @onclick="RemoveSelectedElement">⌫</button><button type="button" class="icon-button" @onclick="() => selectedElementId = null">×</button></div></header>
+                        @if (FindParentContainer(element.Id) is FormElementDefinition parentContainer)
+                        {
+                            <button type="button" class="text-button" @onclick="() => SelectElement(parentContainer.Id)">← بازگشت به @parentContainer.Label</button>
+                        }
                         @if (IsContentElement(element.Type))
                         {
                             <label class="property-field">محتوا<textarea class="form-control polished-input" rows="5" @bind="element.Content" @bind:event="oninput" @onchange="MarkChanged"></textarea></label>
@@ -411,7 +415,9 @@
     private void AddCondition(FormElementDefinition element){element.VisibilityCondition?.Rules.Add(new FormConditionRuleDefinition());MarkChanged();}
     private void RemoveCondition(FormElementDefinition element,int index){element.VisibilityCondition?.Rules.RemoveAt(index);if(element.VisibilityCondition?.Rules.Count==0)element.VisibilityCondition=null;MarkChanged();}
     private IEnumerable<FormElementDefinition> ConditionSources(FormElementDefinition current)=>FormSubmissionValidator.EnumerateElements(schema).Where(element=>element.Id!=current.Id&&!IsContentElement(element.Type)&&element.Type is not FormElementType.Repeater and not FormElementType.Table);
-    private void AddChild(FormElementDefinition container){FormElementDefinition child=CreateElement(FormElementType.Text);child.Key=NextKey(container.Key+"_item");child.Label="فیلد ردیف";container.Children.Add(child);selectedElementId=child.Id;MarkChanged();}
+    private void AddChild(FormElementDefinition container){FormElementDefinition child=CreateElement(FormElementType.Text);child.Key=NextKey(container.Key+"_item");child.Label="فیلد ردیف";container.Children.Add(child);MarkChanged();}
+    private bool IsCanvasElementSelected(FormElementDefinition element)=>selectedElementId==element.Id||(selectedElementId.HasValue&&ContainsElement(element,selectedElementId.Value));
+    private FormElementDefinition? FindParentContainer(Guid childId)=>FormSubmissionValidator.EnumerateElements(schema).FirstOrDefault(candidate=>(candidate.Type is FormElementType.Repeater or FormElementType.Table)&&candidate.Children.Any(child=>child.Id==childId));
 
     private void AddAccessRule(){if(string.IsNullOrWhiteSpace(selectedSubject))return;FormAccessSubjectOption? subject=subjects.FirstOrDefault(option=>EncodeSubject(option)==selectedSubject);if(subject is null||accessRules.Any(rule=>rule.SubjectType==subject.SubjectType&&string.Equals(rule.SubjectKey,subject.SubjectKey,StringComparison.OrdinalIgnoreCase)))return;accessRules.Add(new FormAccessRuleData(null,subject.SubjectType,subject.SubjectKey,subject.DisplayName,FormAccessRights.View|FormAccessRights.Submit));selectedSubject=null;MarkChanged();}
     private void RemoveAccessRule(FormAccessRuleData rule){if(IsOwnerRule(rule))return;accessRules.Remove(rule);MarkChanged();}

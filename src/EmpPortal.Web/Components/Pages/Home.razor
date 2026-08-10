@@ -2,6 +2,7 @@
 @attribute [Authorize]
 
 @using EmpPortal.Application.Authorization
+@using EmpPortal.Application.Configuration
 @using EmpPortal.Application.Forms
 @using EmpPortal.Application.Localization
 @using EmpPortal.Web.Security
@@ -9,6 +10,7 @@
 @using Microsoft.AspNetCore.Authorization
 
 @inject IConfiguration Configuration
+@inject IRuntimeSettingsService RuntimeSettings
 @inject IFormSubmissionService FormSubmissionService
 @inject FormActorFactory ActorFactory
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -18,9 +20,8 @@
 <section class="dashboard-page" aria-labelledby="dashboard-title">
     <header class="dashboard-heading">
         <div>
-            <span class="eyebrow">داشبورد سازمانی</span>
-            <h1 id="dashboard-title">سلام @displayName، خوش آمدید</h1>
-            <p>خلاصه وضعیت و دسترسی سریع به خدمات یکپارچه پرتال کارکنان.</p>
+            <span class="eyebrow">داشبورد</span>
+            <h1 id="dashboard-title">سلام @displayName</h1>
         </div>
         <div class="today-chip">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z" /></svg>
@@ -31,15 +32,15 @@
     <div class="metrics-grid" aria-label="خلاصه وضعیت">
         <article class="metric-card blue">
             <span class="metric-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z" /></svg></span>
-            <div><small>ثبت‌نام‌های فعال</small><strong>@FormatMetric(availableForms.Count)</strong><a href="/forms">مشاهده رویدادها ←</a></div>
+            <div><small>رویدادهای فعال</small><strong>@FormatMetric(availableForms.Count)</strong></div>
         </article>
         <article class="metric-card violet">
             <span class="metric-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4V5Zm4 4h8M8 13h5" /></svg></span>
-            <div><small>ثبت‌های نهایی من</small><strong>@FormatMetric(availableForms.Sum(form => form.SubmissionCount))</strong><span>در رویدادهای فعال فعلی</span></div>
+            <div><small>ثبت‌های من</small><strong>@FormatMetric(availableForms.Sum(form => form.SubmissionCount))</strong></div>
         </article>
         <article class="metric-card green">
             <span class="metric-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg></span>
-            <div><small>وضعیت نشست</small><strong>فعال</strong><span>اعتبارسنجی امنیتی پیوسته برقرار است</span></div>
+            <div><small>نشست</small><strong>فعال</strong></div>
         </article>
     </div>
 
@@ -51,27 +52,21 @@
     <section class="dashboard-card services-card" aria-labelledby="services-title">
         <header>
             <div>
-                <h2 id="services-title">خدمات پرتال</h2>
-                <p>دسترسی سریع به ماژول‌های فعال و خدمات در حال توسعه</p>
+                <h2 id="services-title">میانبر خدمات</h2>
             </div>
         </header>
         <div class="service-tile-grid">
-            @foreach (PortalServiceDefinition item in PortalServiceCatalog.All)
+            @foreach (PortalServiceDefinition item in PortalServiceCatalog.All.Where(service => service.IsAvailable))
             {
-                <a class="service-tile tone-@item.Tone.ToString().ToLowerInvariant()" href="@item.Href">
+                string href = ResolveServiceHref(item);
+                bool external = item.OpensInNewTab && !string.IsNullOrWhiteSpace(foodReservationUrl) &&
+                    string.Equals(item.Key, PortalServiceCatalog.FoodKey, StringComparison.OrdinalIgnoreCase);
+                <a class="service-tile tone-@item.Tone.ToString().ToLowerInvariant()"
+                   href="@href"
+                   target="@(external ? "_blank" : null)"
+                   rel="@(external ? "noopener noreferrer" : null)">
                     <span class="service-tile-icon" aria-hidden="true"><PortalServiceIcon ServiceKey="@item.Key" /></span>
-                    <div>
-                        <strong>@item.Title</strong>
-                        <small>@item.ShortDescription</small>
-                    </div>
-                    @if (item.IsAvailable)
-                    {
-                        <b>ورود ←</b>
-                    }
-                    else
-                    {
-                        <em>به‌زودی</em>
-                    }
+                    <strong>@item.Title</strong>
                 </a>
             }
         </div>
@@ -81,10 +76,9 @@
         <section class="dashboard-card forms-card">
             <header>
                 <div>
-                    <h2>ثبت‌نام‌ها و رویدادهای اخیر</h2>
-                    <p>فرم‌های فعال برای جشنواره، کنسرت، جشن و برنامه‌های سازمانی</p>
+                    <h2>رویدادهای اخیر</h2>
                 </div>
-                <a href="/forms">مشاهده همه</a>
+                <a href="/forms">همه</a>
             </header>
             @if (isLoading)
             {
@@ -92,26 +86,25 @@
             }
             else if (availableForms.Count == 0)
             {
-                <div class="mini-empty"><strong>ثبت‌نام فعالی وجود ندارد</strong><span>به‌محض انتشار فرم توسط مدیریت پرتال، در این بخش نمایش داده می‌شود.</span></div>
+                <div class="mini-empty"><strong>رویداد فعالی نیست</strong></div>
             }
             else
             {
                 <div class="form-shortcuts">
                     @foreach (FormSummary form in availableForms.Take(4))
                     {
-                        <a href="@($"/forms/{form.Slug}")"><span>ر</span><div><strong>@form.Title</strong><small>آخرین بروزرسانی: @PersianDateTimeFormatter.FormatDate(form.UpdatedAtUtc)</small></div><b>شروع ←</b></a>
+                        <a href="@($"/forms/{form.Slug}")"><span>ر</span><div><strong>@form.Title</strong></div><b>شروع</b></a>
                     }
                 </div>
             }
         </section>
 
         <aside class="dashboard-card essentials-card">
-            <header><div><h2>اطلاعات ضروری</h2><p>وضعیت دسترسی جاری شما</p></div></header>
+            <header><div><h2>دسترسی سریع</h2></div></header>
             <ul>
-                <li><span class="status-dot"></span><div><strong>هویت سازمانی تأیید شده</strong><small>@userUpn</small></div></li>
-                <li><span class="status-dot"></span><div><strong>نشست پرتال مستقل است</strong><small>خروج از پرتال، نشست Windows را تغییر نمی‌دهد.</small></div></li>
+                <li><span class="status-dot"></span><div><strong>@userUpn</strong></div></li>
             </ul>
-            <a class="essential-link" href="/forms">رفتن به ثبت‌نام‌ها و رویدادها ←</a>
+            <a class="essential-link" href="/forms">ثبت‌نام‌ها ←</a>
             <AuthorizeView Roles="@PortalRoles.FormManagementRoles" Context="formManagerState">
                 <a class="essential-link admin" href="/admin/forms">مدیریت فرم‌ها ←</a>
             </AuthorizeView>
@@ -125,6 +118,7 @@
     private string? errorMessage;
     private string displayName = "همکار گرامی";
     private string userUpn = string.Empty;
+    private string? foodReservationUrl;
     private readonly string todayText = PersianDateTimeFormatter.FormatDate(DateTimeOffset.Now);
     private string PortalTitle => Configuration["Portal:Title"] ?? "پرتال کارمندی";
 
@@ -133,6 +127,7 @@
         AuthenticationState state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         displayName = state.User.FindFirst("display_name")?.Value ?? state.User.Identity?.Name ?? "همکار گرامی";
         userUpn = state.User.Identity?.Name ?? "حساب سازمانی";
+        foodReservationUrl = await RuntimeSettings.GetValueAsync(PortalRuntimeSettingKeys.FoodReservationExternalUrl);
 
         try
         {
@@ -140,12 +135,23 @@
         }
         catch (Exception exception) when (exception is UnauthorizedAccessException or InvalidOperationException)
         {
-            errorMessage = "در حال حاضر دریافت فهرست ثبت‌نام‌ها ممکن نیست. سایر بخش‌های پرتال در دسترس هستند.";
+            errorMessage = "دریافت فهرست رویدادها ممکن نیست.";
         }
         finally
         {
             isLoading = false;
         }
+    }
+
+    private string ResolveServiceHref(PortalServiceDefinition item)
+    {
+        if (string.Equals(item.Key, PortalServiceCatalog.FoodKey, StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(foodReservationUrl))
+        {
+            return foodReservationUrl;
+        }
+
+        return item.Href;
     }
 
     private string FormatMetric(long value) => isLoading

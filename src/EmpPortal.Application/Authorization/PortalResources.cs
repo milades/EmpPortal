@@ -25,7 +25,7 @@ public static class PortalResources
     public const string FoodView = "food.view";
     public const string AssetsView = "assets.view";
     public const string CharityView = "charity.view";
-    public const string SecurityView = "security.view";
+    public const string CharityManage = "charity.manage";
     public const string AccessManage = "access.manage";
     public const string RuntimeSettings = "runtime.settings";
 
@@ -36,6 +36,7 @@ public static class PortalResources
     public const string FormsAdminPolicy = "PortalResource:forms.admin";
     public const string AssetsViewPolicy = "PortalResource:assets.view";
     public const string CharityViewPolicy = "PortalResource:charity.view";
+    public const string CharityManagePolicy = "PortalResource:charity.manage";
     public const string AccessManagePolicy = "PortalResource:access.manage";
     public const string RuntimeSettingsPolicy = "PortalResource:runtime.settings";
 
@@ -43,15 +44,15 @@ public static class PortalResources
     [
         new(Dashboard, "داشبورد", "صفحه اصلی پرتال پس از ورود.", "پرتال", "/", DefaultEmployeeGrant: true),
         new(PersonnelView, "پرونده پرسنلی", "مشاهده و ویرایش اطلاعات پرونده پرسنلی.", "منابع انسانی", "/services/personnel", DefaultEmployeeGrant: true),
-        new(PayslipView, "فیش حقوقی من", "دسترسی به صفحه و منوی فیش حقوقی پرسنل.", "منابع انسانی", "/services/payslip", DefaultEmployeeGrant: true, ComingSoon: true),
+        new(PayslipView, "فیش حقوقی من", "دسترسی به صفحه و منوی فیش حقوقی پرسنل.", "منابع انسانی", "/services/payslip", DefaultEmployeeGrant: true),
         new(PayslipSettings, "تنظیمات فیش حقوقی", "فعال یا غیرفعال کردن نمایش فیش برای دوره‌های ماهانه.", "منابع انسانی", "/services/payslip-settings"),
         new(BenefitsView, "تسهیلات من", "مشاهده فهرست تسهیلات و مزایای پرسنل.", "منابع انسانی", "/services/benefits", DefaultEmployeeGrant: true),
         new(FormsEvents, "ثبت‌نام‌ها و رویدادها", "فهرست و تکمیل فرم‌های منتشرشده.", "خدمات کارکنان", "/forms", DefaultEmployeeGrant: true),
         new(FormsAdmin, "مدیریت و گزارش فرم‌ها", "طراحی، انتشار و گزارش فرم‌های سازمانی.", "مدیریت فرم‌ها", "/admin/forms"),
-        new(FoodView, "رزرو غذا", "رزرو وعده‌های غذایی سازمانی.", "خدمات کارکنان", "/services/food", ComingSoon: true),
+        new(FoodView, "رزرو غذا", "ورود به سامانه خارجی رزرو غذا.", "خدمات کارکنان", "/services/food", DefaultEmployeeGrant: true),
         new(AssetsView, "اموال من", "مشاهده فهرست اموال و تجهیزات تحویلی.", "خدمات کارکنان", "/services/assets", DefaultEmployeeGrant: true),
         new(CharityView, "انفاق", "خوداظهاری انفاق از حقوق ماهانه.", "خدمات کارکنان", "/services/charity", DefaultEmployeeGrant: true),
-        new(SecurityView, "امنیت", "امنیت حساب و نشست‌های پرتال.", "امنیت", "/services/security", ComingSoon: true),
+        new(CharityManage, "مدیریت انفاق", "مشاهده، حذف و خروجی اکسل ثبت‌نام‌های انفاق.", "خدمات کارکنان", "/services/charity-admin"),
         new(AccessManage, "مدیریت دسترسی‌ها", "تخصیص نقش و مجوز بخش‌های سامانه به کاربران.", "سامانه", "/admin/access"),
         new(RuntimeSettings, "تنظیمات عملیاتی", "ویرایش تنظیمات runtime سامانه.", "سامانه", "/admin/settings")
     ];

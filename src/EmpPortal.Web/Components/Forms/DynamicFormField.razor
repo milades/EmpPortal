@@ -34,28 +34,49 @@
         case FormElementType.Select:
             <div class="dynamic-field @WidthClass">
                 @FieldLabel
-                <select id="@InputId" class="form-select dynamic-input" value="@StringValue"
-                        disabled="@Element.ReadOnly" @onchange="SetStringAsync">
-                    <option value="">انتخاب کنید</option>
-                    @foreach (FormOptionDefinition option in Element.Options)
-                    {
-                        <option value="@option.Value">@option.Label</option>
-                    }
-                </select>
+                <SearchableSelect CssClass="dynamic-input"
+                                  Placeholder="انتخاب کنید"
+                                  Disabled="@Element.ReadOnly"
+                                  Options="SelectOptions"
+                                  Value="@StringValue"
+                                  ValueChanged="SetStringValueAsync" />
                 @FieldHelp
                 @FieldErrors
             </div>
             break;
         case FormElementType.MultiSelect:
-            <div class="dynamic-field @WidthClass">
-                @FieldLabel
-                <select id="@InputId" class="form-select dynamic-input" multiple size="@Math.Clamp(Element.Options.Count, 3, 7)"
-                        disabled="@Element.ReadOnly" @onchange="SetMultipleAsync">
+            <fieldset class="dynamic-field @WidthClass">
+                <legend>@Element.Label @RequiredMark</legend>
+                <div class="dynamic-choice-list dynamic-multiselect">
                     @foreach (FormOptionDefinition option in Element.Options)
                     {
-                        <option value="@option.Value" selected="@SelectedValues.Contains(option.Value)">@option.Label</option>
+                        string optionId = $"{InputId}-{option.Value}";
+                        <label class="dynamic-choice" for="@optionId">
+                            <input id="@optionId" type="checkbox" value="@option.Value"
+                                   checked="@SelectedValues.Contains(option.Value)" disabled="@Element.ReadOnly"
+                                   @onchange="args => ToggleMultiSelectAsync(option.Value, args)" />
+                            <span>@option.Label</span>
+                        </label>
                     }
-                </select>
+                </div>
+                @FieldHelp
+                @FieldErrors
+            </fieldset>
+            break;
+        case FormElementType.Slider:
+            <div class="dynamic-field @WidthClass">
+                @FieldLabel
+                <div class="dynamic-slider">
+                    <input id="@InputId" class="dynamic-slider-input" type="range"
+                           value="@SliderValueText" disabled="@Element.ReadOnly"
+                           min="@SliderMinText" max="@SliderMaxText" step="1"
+                           @oninput="SetInputAsync" />
+                    <output class="dynamic-slider-value" for="@InputId">@SliderDisplayValue</output>
+                </div>
+                <div class="dynamic-slider-scale">
+                    <small>@SliderMinText</small>
+                    <small>@SliderMaxText</small>
+                </div>
                 @FieldHelp
                 @FieldErrors
             </div>
@@ -236,9 +257,31 @@
         FormElementType.Email => "email",
         FormElementType.Phone => "tel",
         FormElementType.Url => "url",
-        FormElementType.Slider => "range",
         _ => "text"
     };
+
+    private IReadOnlyList<SearchableSelectOption> SelectOptions =>
+        Element.Options.Select(option => new SearchableSelectOption(option.Value, option.Label)).ToArray();
+
+    private decimal SliderMin => Element.Validation.MinimumValue ?? 0;
+    private decimal SliderMax => Element.Validation.MaximumValue ?? 100;
+    private string SliderMinText => SliderMin.ToString("0", CultureInfo.InvariantCulture);
+    private string SliderMaxText => SliderMax.ToString("0", CultureInfo.InvariantCulture);
+    private string SliderValueText
+    {
+        get
+        {
+            if (decimal.TryParse(StringValue, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal parsed))
+            {
+                return Math.Clamp(parsed, SliderMin, SliderMax).ToString("0", CultureInfo.InvariantCulture);
+            }
+
+            return SliderMinText;
+        }
+    }
+
+    private string SliderDisplayValue =>
+        EmpPortal.Application.Localization.PersianDateTimeFormatter.ToPersianDigits(SliderValueText);
 
     private RenderFragment FieldLabel => builder =>
     {
@@ -302,10 +345,16 @@
     {
         string value = args.Value?.ToString() ?? string.Empty;
         if (Element.Type is FormElementType.Number or FormElementType.Currency or
-            FormElementType.Percentage or FormElementType.Slider &&
-            decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal number))
+            FormElementType.Percentage or FormElementType.Slider)
         {
-            Values[Element.Key] = JsonSerializer.SerializeToElement(number);
+            if (decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal number))
+            {
+                Values[Element.Key] = JsonSerializer.SerializeToElement(number);
+            }
+            else
+            {
+                Values[Element.Key] = JsonSerializer.SerializeToElement(value);
+            }
         }
         else
         {
@@ -315,9 +364,25 @@
         await NotifyChanged.InvokeAsync();
     }
 
-    private async Task SetStringValueAsync(string value)
+    private async Task ToggleMultiSelectAsync(string optionValue, ChangeEventArgs args)
     {
-        Values[Element.Key] = JsonSerializer.SerializeToElement(value);
+        HashSet<string> selected = SelectedValues;
+        if (args.Value is true)
+        {
+            selected.Add(optionValue);
+        }
+        else
+        {
+            selected.Remove(optionValue);
+        }
+
+        Values[Element.Key] = JsonSerializer.SerializeToElement(selected.ToArray());
+        await NotifyChanged.InvokeAsync();
+    }
+
+    private async Task SetStringValueAsync(string? value)
+    {
+        Values[Element.Key] = JsonSerializer.SerializeToElement(value ?? string.Empty);
         await NotifyChanged.InvokeAsync();
     }
 
@@ -326,19 +391,6 @@
     private async Task SetBooleanAsync(ChangeEventArgs args)
     {
         Values[Element.Key] = JsonSerializer.SerializeToElement(args.Value is true);
-        await NotifyChanged.InvokeAsync();
-    }
-
-    private async Task SetMultipleAsync(ChangeEventArgs args)
-    {
-        string[] selected = args.Value switch
-        {
-            string[] values => values,
-            IEnumerable<string> values => values.ToArray(),
-            string value => [value],
-            _ => []
-        };
-        Values[Element.Key] = JsonSerializer.SerializeToElement(selected);
         await NotifyChanged.InvokeAsync();
     }
 

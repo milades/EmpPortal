@@ -26,7 +26,12 @@ public sealed class RuntimeSettingsService(
         Integer("Session:MaxConcurrentPerUser", "نشست هم‌زمان", "حداکثر نشست فعال هر کاربر", 1, 10),
         Integer("Session:AdRevalidationSeconds", "بازاعتبارسنجی AD", "فاصله کنترل وضعیت حساب بر حسب ثانیه", 15, 60),
         Integer("Jwt:AccessTokenMinutes", "عمر JWT", "عمر Access Token بر حسب دقیقه", 1, 15),
-        Text("Portal:Title", "عنوان پرتال", "عنوان نمایشی سامانه", 120)
+        Text("Portal:Title", "عنوان پرتال", "عنوان نمایشی سامانه", 120),
+        Url(
+            PortalRuntimeSettingKeys.FoodReservationExternalUrl,
+            "نشانی رزرو غذا",
+            "آدرس سامانه خارجی رزرو غذا که در منو و داشبورد در تب جدید باز می‌شود.",
+            maximumLength: 2000)
     ];
 
     public async Task<IReadOnlyList<RuntimeSettingItem>> GetAllAsync(
@@ -49,6 +54,20 @@ public sealed class RuntimeSettingsService(
                 definition.RequiresRestart,
                 storedSetting?.UpdatedAtUtc);
         }).ToArray();
+    }
+
+    public async Task<string?> GetValueAsync(
+        string key,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        await using PortalDbContext dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        string? storedValue = await dbContext.RuntimeSettings.AsNoTracking()
+            .Where(setting => setting.Key == key)
+            .Select(setting => setting.Value)
+            .FirstOrDefaultAsync(cancellationToken);
+        string? value = storedValue ?? configuration[key];
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
     public async Task UpdateAsync(
@@ -152,4 +171,26 @@ public sealed class RuntimeSettingsService(
             description,
             RequiresRestart: true,
             value => bool.TryParse(value, out _));
+
+    private static RuntimeSettingDefinition Url(
+        string key,
+        string displayName,
+        string description,
+        int maximumLength) =>
+        new(
+            key,
+            displayName,
+            description,
+            RequiresRestart: false,
+            value =>
+            {
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    return true;
+                }
+
+                return value.Length <= maximumLength &&
+                    Uri.TryCreate(value, UriKind.Absolute, out Uri? uri) &&
+                    (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+            });
 }

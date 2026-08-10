@@ -96,7 +96,14 @@
                             <td>@(pledge.Note ?? "—")</td>
                             <td>
                                 <div class="table-actions">
-                                    <AsyncActionButton CssClass="table-action delete" Disabled="@isBusy" LoadingText="در حال حذف…" OnClick="@(() => DeleteAsync(pledge.Id))">حذف</AsyncActionButton>
+                                    @if (pledge.CanUserDelete)
+                                    {
+                                        <AsyncActionButton CssClass="table-action delete" Disabled="@isBusy" LoadingText="در حال حذف…" OnClick="@(() => DeleteAsync(pledge.Id))">حذف</AsyncActionButton>
+                                    }
+                                    else
+                                    {
+                                        <span class="status-badge">قفل پس از خروجی</span>
+                                    }
                                 </div>
                             </td>
                         </tr>
@@ -161,6 +168,11 @@
         catch (UnauthorizedAccessException)
         {
             NavigationManager.NavigateTo("/account/access-denied");
+        }
+        catch (Exception exception)
+        {
+            messageClass = "error";
+            message = $"بارگذاری سوابق انفاق با خطا مواجه شد: {exception.Message}";
         }
         finally
         {
@@ -267,7 +279,7 @@
             messageClass = "success";
             message = "اعلام انفاق حذف شد.";
         }
-        catch (Exception exception) when (exception is UnauthorizedAccessException or KeyNotFoundException)
+        catch (Exception exception) when (exception is UnauthorizedAccessException or KeyNotFoundException or InvalidOperationException)
         {
             messageClass = "error";
             message = exception.Message;

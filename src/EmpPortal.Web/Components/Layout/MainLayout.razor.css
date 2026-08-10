@@ -130,7 +130,8 @@
     margin-top: 0;
 }
 
-.sidebar-navigation ::deep a {
+.sidebar-navigation ::deep a,
+.sidebar-navigation a.sidebar-external-link {
     align-items: center;
     border-radius: .65rem;
     color: #9ca3af;
@@ -144,12 +145,14 @@
     transition: background-color 150ms ease, color 150ms ease;
 }
 
-.sidebar-navigation ::deep a > span {
+.sidebar-navigation ::deep a > span,
+.sidebar-navigation a.sidebar-external-link > span {
     flex: 1;
     min-width: 0;
 }
 
-.sidebar-navigation ::deep a:hover {
+.sidebar-navigation ::deep a:hover,
+.sidebar-navigation a.sidebar-external-link:hover {
     background: rgba(255, 255, 255, .06);
     color: #fff;
 }

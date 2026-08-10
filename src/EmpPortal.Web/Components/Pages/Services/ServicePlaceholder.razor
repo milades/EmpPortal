@@ -6,13 +6,25 @@
 
 @inject NavigationManager NavigationManager
 
-@if (service is null)
+@if (isDedicatedRouteFallback)
+{
+    <section class="empty-state">
+        <h2>باز کردن صفحه خدمت</h2>
+        <p>مسیر این خدمت صفحه اختصاصی دارد. اگر به‌جای آن این پیام را می‌بینید، یک‌بار با لینک زیر وارد شوید.</p>
+        <a class="primary-button" href="@($"/services/{ServiceKey}")" data-enhance-nav="false">ادامه به صفحه خدمت</a>
+    </section>
+}
+else if (service is null)
 {
     <section class="empty-state">
         <h2>خدمت یافت نشد</h2>
         <p>مسیر درخواست‌شده در فهرست خدمات پرتال وجود ندارد.</p>
         <a class="primary-button" href="/">بازگشت به داشبورد</a>
     </section>
+}
+else if (service.IsAvailable)
+{
+    <div class="loading-panel" role="status">در حال باز کردن @service.Title…</div>
 }
 else
 {
@@ -23,15 +35,46 @@ else
 }
 
 @code {
+    // Dedicated Razor pages own these routes. Never NavigateTo the same URL from this
+    // catch-all — that disconnects the Blazor circuit with an infinite redirect loop.
+    private static readonly HashSet<string> DedicatedServiceKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "payslip",
+        "payslip-settings",
+        "charity",
+        "charity-admin",
+        "personnel",
+        "benefits",
+        "assets",
+        "food"
+    };
+
     [Parameter]
     public string ServiceKey { get; set; } = string.Empty;
 
     private PortalServiceDefinition? service;
+    private bool isDedicatedRouteFallback;
 
     protected override void OnParametersSet()
     {
+        isDedicatedRouteFallback = DedicatedServiceKeys.Contains(ServiceKey);
+        if (isDedicatedRouteFallback)
+        {
+            service = null;
+            return;
+        }
+
         service = PortalServiceCatalog.Find(ServiceKey);
-        if (service?.IsAvailable == true)
+        if (service?.IsAvailable != true)
+        {
+            return;
+        }
+
+        string currentPath = NavigationManager.ToBaseRelativePath(NavigationManager.Uri)
+            .Split('?', 2)[0]
+            .Trim('/');
+        string targetPath = service.Href.Trim('/');
+        if (!string.Equals(currentPath, targetPath, StringComparison.OrdinalIgnoreCase))
         {
             NavigationManager.NavigateTo(service.Href, replace: true);
         }

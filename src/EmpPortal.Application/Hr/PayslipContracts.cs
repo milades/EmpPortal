@@ -35,3 +35,17 @@ public interface IPayslipSettingsService
         int persianMonth,
         CancellationToken cancellationToken = default);
 }
+
+public sealed record PayslipPdfResult(
+    byte[] Content,
+    string FileName,
+    string ContentType);
+
+public interface IPayslipReportService
+{
+    public Task<PayslipPdfResult> RenderMyPayslipPdfAsync(
+        PortalActor actor,
+        int persianYear,
+        int persianMonth,
+        CancellationToken cancellationToken = default);
+}

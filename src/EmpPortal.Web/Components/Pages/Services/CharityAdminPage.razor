@@ -1,0 +1,170 @@
+@page "/services/charity-admin"
+@attribute [Authorize(Policy = PortalResources.CharityManagePolicy)]
+
+@using System.Globalization
+@using EmpPortal.Application.Authorization
+@using EmpPortal.Application.Hr
+@using EmpPortal.Application.Localization
+@using EmpPortal.Domain.Hr
+@using EmpPortal.Web.Security
+@using EmpPortal.Web.Services
+@using Microsoft.AspNetCore.Authorization
+
+@inject ICharityPledgeService CharityPledgeService
+@inject PortalActorFactory ActorFactory
+@inject NavigationManager NavigationManager
+@inject IConfirmationService ConfirmationService
+
+<PageTitle>مدیریت انفاق | پرتال کارمندی</PageTitle>
+
+<section class="charity-page" aria-labelledby="charity-admin-title">
+    <header class="page-heading">
+        <div>
+            <span class="eyebrow">خدمات کارکنان</span>
+            <h1 id="charity-admin-title">مدیریت انفاق</h1>
+            <p>مشاهده ثبت‌نام‌ها، دریافت خروجی اکسل برای اعمال روی حقوق، و حذف در صورت نیاز.</p>
+        </div>
+        <div class="inline-actions">
+            <a class="primary-button" href="/api/charity/export.xlsx" data-enhance-nav="false">دریافت Excel</a>
+            <AsyncActionButton CssClass="secondary-button" LoadingText="در حال بروزرسانی…" OnClick="ReloadAsync">بروزرسانی</AsyncActionButton>
+        </div>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <div class="form-notice @messageClass" role="status">@message</div>
+    }
+
+    <div class="form-notice warning" role="note">
+        پس از دریافت Excel، امکان حذف توسط پرسنل برای همان رکوردها غیرفعال می‌شود و فقط مدیر می‌تواند حذف کند.
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="loading-panel" role="status">در حال دریافت ثبت‌نام‌ها…</div>
+    }
+    else if (rows.Count == 0)
+    {
+        <div class="empty-state"><h2>ثبت‌نامی وجود ندارد</h2><p>هنوز اعلام انفاقی ثبت نشده است.</p></div>
+    }
+    else
+    {
+        <div class="report-table-wrap">
+            <table class="report-table dynamic-data-table">
+                <thead>
+                    <tr>
+                        <th>کد پرسنلی</th>
+                        <th>نام</th>
+                        <th>مبلغ</th>
+                        <th>نوع</th>
+                        <th>بازه</th>
+                        <th>زمان ثبت</th>
+                        <th>وضعیت خروجی</th>
+                        <th>عملیات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (CharityPledgeAdminRow row in rows)
+                    {
+                        <tr>
+                            <td>@(row.PersonnelCode ?? "—")</td>
+                            <td>
+                                <div>@row.UserDisplayName</div>
+                                <small dir="ltr">@row.UserUpn</small>
+                            </td>
+                            <td>@row.Amount.ToString("N0", CultureInfo.InvariantCulture)</td>
+                            <td>@(row.Mode == CharityPledgeMode.OneTime ? "یک‌بار" : "بازه ماهانه")</td>
+                            <td>@FormatPeriod(row)</td>
+                            <td>@PersianDateTimeFormatter.FormatDateTime(row.CreatedAtUtc)</td>
+                            <td>@(row.ResultsExportedAtUtc is null ? "قابل حذف توسط کاربر" : "خروجی گرفته‌شده")</td>
+                            <td>
+                                <div class="table-actions">
+                                    <AsyncActionButton CssClass="table-action delete" Disabled="@isBusy" LoadingText="در حال حذف…" OnClick="@(() => DeleteAsync(row.Id))">حذف</AsyncActionButton>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@code {
+    private List<CharityPledgeAdminRow> rows = [];
+    private bool isLoading = true;
+    private bool isBusy;
+    private string? message;
+    private string messageClass = "success";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await ReloadAsync();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            NavigationManager.NavigateTo("/account/access-denied");
+        }
+        catch (Exception exception)
+        {
+            messageClass = "error";
+            message = $"بارگذاری ثبت‌نام‌های انفاق با خطا مواجه شد: {exception.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ReloadAsync()
+    {
+        PortalActor actor = await ActorFactory.CreateAsync();
+        rows = (await CharityPledgeService.ListAllForAdminAsync(actor)).ToList();
+    }
+
+    private async Task DeleteAsync(Guid pledgeId)
+    {
+        bool confirmed = await ConfirmationService.ConfirmAsync(
+            "حذف اعلام انفاق؟",
+            "این عملیات برگشت‌پذیر نیست و از فهرست نتایج حذف می‌شود.",
+            "بله، حذف شود");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        isBusy = true;
+        message = null;
+        try
+        {
+            PortalActor actor = await ActorFactory.CreateAsync();
+            await CharityPledgeService.DeleteAsAdminAsync(actor, pledgeId);
+            await ReloadAsync();
+            messageClass = "success";
+            message = "اعلام انفاق حذف شد.";
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or KeyNotFoundException or InvalidOperationException)
+        {
+            messageClass = "error";
+            message = exception.Message;
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private static string FormatPeriod(CharityPledgeAdminRow row)
+    {
+        string start = $"{PersianDateTimeFormatter.MonthNames[row.StartPersianMonth - 1]} {PersianDateTimeFormatter.ToPersianDigits(row.StartPersianYear.ToString(CultureInfo.InvariantCulture))}";
+        if (row.Mode == CharityPledgeMode.OneTime || row.EndPersianYear is null || row.EndPersianMonth is null)
+        {
+            return start;
+        }
+
+        string end = $"{PersianDateTimeFormatter.MonthNames[row.EndPersianMonth.Value - 1]} {PersianDateTimeFormatter.ToPersianDigits(row.EndPersianYear.Value.ToString(CultureInfo.InvariantCulture))}";
+        return $"{start} تا {end}";
+    }
+}

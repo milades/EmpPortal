@@ -42,6 +42,12 @@ public sealed class CharityPledge
 
     public DateTimeOffset UpdatedAtUtc { get; private set; }
 
+    public DateTimeOffset? ResultsExportedAtUtc { get; private set; }
+
+    public Guid? ResultsExportedByUserId { get; private set; }
+
+    public bool IsResultsExported => ResultsExportedAtUtc.HasValue;
+
     public static CharityPledge CreateOneTime(
         Guid userId,
         decimal amount,
@@ -105,6 +111,15 @@ public sealed class CharityPledge
         ArgumentOutOfRangeException.ThrowIfEqual(actorUserId, Guid.Empty);
         IsConfirmed = true;
         ConfirmedAtUtc = nowUtc;
+        UpdatedByUserId = actorUserId;
+        UpdatedAtUtc = nowUtc;
+    }
+
+    public void MarkResultsExported(Guid actorUserId, DateTimeOffset nowUtc)
+    {
+        ArgumentOutOfRangeException.ThrowIfEqual(actorUserId, Guid.Empty);
+        ResultsExportedAtUtc = nowUtc;
+        ResultsExportedByUserId = actorUserId;
         UpdatedByUserId = actorUserId;
         UpdatedAtUtc = nowUtc;
     }

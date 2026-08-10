@@ -1,0 +1,246 @@
+@page "/services/payslip"
+@attribute [Authorize(Policy = PortalResources.PayslipViewPolicy)]
+
+@using System.Globalization
+@using EmpPortal.Application.Authorization
+@using EmpPortal.Application.Hr
+@using EmpPortal.Application.Localization
+@using EmpPortal.Infrastructure.Persistence
+@using EmpPortal.Infrastructure.Persistence.Identity
+@using EmpPortal.Web.Security
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+
+@inject IPayslipSettingsService PayslipSettingsService
+@inject PortalActorFactory ActorFactory
+@inject IDbContextFactory<PortalDbContext> DbContextFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>فیش حقوقی من | پرتال کارمندی</PageTitle>
+
+<section class="payslip-page" aria-labelledby="payslip-title">
+    <header class="page-heading">
+        <div>
+            <span class="eyebrow">منابع انسانی</span>
+            <h1 id="payslip-title">فیش حقوقی من</h1>
+            <p>با انتخاب سال و ماه شمسی، فیش حقوقی خود را مشاهده یا به‌صورت PDF دریافت کنید.</p>
+        </div>
+        @if (canShowReport)
+        {
+            <div class="inline-actions">
+                <a class="primary-button"
+                   href="@DownloadUrl"
+                   data-enhance-nav="false"
+                   download>دریافت PDF</a>
+            </div>
+        }
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <div class="form-notice @messageClass" role="status">@message</div>
+    }
+
+    @if (string.IsNullOrWhiteSpace(personnelCode))
+    {
+        <div class="empty-state">
+            <h2>کد پرسنلی ثبت نشده است</h2>
+            <p>برای مشاهده فیش حقوقی، مدیر سامانه باید کد پرسنلی شما را در بخش مدیریت دسترسی‌ها تنظیم کند.</p>
+        </div>
+    }
+    else
+    {
+        <div class="payslip-controls">
+            <label>سال شمسی
+                <SearchableSelect Options="yearOptions" Value="@selectedYearValue" ValueChanged="OnYearChangedAsync" Placeholder="سال" />
+            </label>
+            <label>ماه شمسی
+                <SearchableSelect Options="monthOptions" Value="@selectedMonthValue" ValueChanged="OnMonthChangedAsync" Placeholder="ماه" />
+            </label>
+            <div class="editor-actions">
+                <button type="button" class="primary-button" disabled="@isBusy" @onclick="ShowReportAsync">نمایش فیش</button>
+            </div>
+        </div>
+
+        @if (isCheckingPeriod)
+        {
+            <div class="loading-panel" role="status">در حال بررسی دوره…</div>
+        }
+        else if (canShowReport)
+        {
+            <div class="payslip-viewer" aria-busy="@isPdfLoading" aria-label="پیش‌نمایش فیش حقوقی">
+                @if (isPdfLoading)
+                {
+                    <div class="payslip-loading" role="status">
+                        <span class="spinner-border" aria-hidden="true"></span>
+                        <strong>در حال آماده‌سازی فیش حقوقی…</strong>
+                        <small>لود گزارش و ساخت PDF ممکن است چند لحظه طول بکشد.</small>
+                    </div>
+                }
+                <iframe title="فیش حقوقی"
+                        src="@ViewerUrl"
+                        class="payslip-frame @(isPdfLoading ? "is-loading" : null)"
+                        @onload="OnPdfFrameLoaded"></iframe>
+            </div>
+        }
+        else if (periodChecked)
+        {
+            <div class="empty-state">
+                <h2>فیش این دوره در دسترس نیست</h2>
+                <p>نمایش فیش حقوقی برای @PersianDateTimeFormatter.MonthNames[selectedMonth - 1] @PersianDateTimeFormatter.ToPersianDigits(selectedYear.ToString(CultureInfo.InvariantCulture)) هنوز فعال نشده است.</p>
+            </div>
+        }
+    }
+</section>
+
+@code {
+    private readonly List<SearchableSelectOption> yearOptions = [];
+    private readonly List<SearchableSelectOption> monthOptions = [];
+    private int selectedYear;
+    private int selectedMonth = 1;
+    private string selectedYearValue = string.Empty;
+    private string selectedMonthValue = string.Empty;
+    private string? personnelCode;
+    private string? message;
+    private string messageClass = "error";
+    private bool isBusy;
+    private bool isCheckingPeriod = true;
+    private bool periodChecked;
+    private bool canShowReport;
+    private bool isPdfLoading;
+    private int viewerNonce;
+
+    private string ViewerUrl =>
+        $"/api/payslip/pdf?year={selectedYear}&month={selectedMonth}&v={viewerNonce}";
+
+    private string DownloadUrl =>
+        $"/api/payslip/pdf?year={selectedYear}&month={selectedMonth}&download=1";
+
+    protected override async Task OnInitializedAsync()
+    {
+        PersianCalendar calendar = new();
+        DateTime today = DateTime.Today;
+        selectedYear = calendar.GetYear(today);
+        selectedMonth = calendar.GetMonth(today);
+        selectedYearValue = selectedYear.ToString(CultureInfo.InvariantCulture);
+        selectedMonthValue = selectedMonth.ToString(CultureInfo.InvariantCulture);
+
+        for (int year = selectedYear - 5; year <= selectedYear + 1; year++)
+        {
+            yearOptions.Add(new SearchableSelectOption(
+                year.ToString(CultureInfo.InvariantCulture),
+                PersianDateTimeFormatter.ToPersianDigits(year.ToString(CultureInfo.InvariantCulture))));
+        }
+
+        for (int month = 1; month <= 12; month++)
+        {
+            monthOptions.Add(new SearchableSelectOption(
+                month.ToString(CultureInfo.InvariantCulture),
+                PersianDateTimeFormatter.MonthNames[month - 1]));
+        }
+
+        try
+        {
+            PortalActor actor = await ActorFactory.CreateAsync();
+            await using PortalDbContext dbContext = await DbContextFactory.CreateDbContextAsync();
+            personnelCode = await dbContext.Users.AsNoTracking()
+                .Where(user => user.Id == actor.UserId)
+                .Select(user => user.PersonnelCode)
+                .FirstOrDefaultAsync();
+
+            if (!string.IsNullOrWhiteSpace(personnelCode))
+            {
+                await RefreshPeriodAsync();
+            }
+            else
+            {
+                isCheckingPeriod = false;
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            NavigationManager.NavigateTo("/account/access-denied");
+        }
+    }
+
+    private async Task OnYearChangedAsync(string? value)
+    {
+        selectedYearValue = value ?? string.Empty;
+        if (int.TryParse(value, CultureInfo.InvariantCulture, out int year))
+        {
+            selectedYear = year;
+            canShowReport = false;
+            periodChecked = false;
+            await RefreshPeriodAsync();
+        }
+    }
+
+    private async Task OnMonthChangedAsync(string? value)
+    {
+        selectedMonthValue = value ?? string.Empty;
+        if (int.TryParse(value, CultureInfo.InvariantCulture, out int month))
+        {
+            selectedMonth = month;
+            canShowReport = false;
+            periodChecked = false;
+            await RefreshPeriodAsync();
+        }
+    }
+
+    private async Task RefreshPeriodAsync()
+    {
+        isCheckingPeriod = true;
+        message = null;
+        try
+        {
+            bool visible = await PayslipSettingsService.IsPeriodVisibleToEmployeesAsync(selectedYear, selectedMonth);
+            periodChecked = true;
+            canShowReport = visible;
+            if (visible)
+            {
+                BeginPdfLoad();
+            }
+            else
+            {
+                isPdfLoading = false;
+            }
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or UnauthorizedAccessException)
+        {
+            messageClass = "error";
+            message = exception.Message;
+            canShowReport = false;
+            periodChecked = true;
+            isPdfLoading = false;
+        }
+        finally
+        {
+            isCheckingPeriod = false;
+        }
+    }
+
+    private async Task ShowReportAsync()
+    {
+        isBusy = true;
+        message = null;
+        try
+        {
+            await RefreshPeriodAsync();
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private void BeginPdfLoad()
+    {
+        isPdfLoading = true;
+        viewerNonce++;
+    }
+
+    private void OnPdfFrameLoaded(ProgressEventArgs _)
+    {
+        isPdfLoading = false;
+    }
+}

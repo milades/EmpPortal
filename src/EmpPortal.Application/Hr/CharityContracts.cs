@@ -14,7 +14,26 @@ public sealed record CharityPledgeData(
     string? Note,
     bool IsConfirmed,
     DateTimeOffset? ConfirmedAtUtc,
-    DateTimeOffset CreatedAtUtc);
+    DateTimeOffset CreatedAtUtc,
+    DateTimeOffset? ResultsExportedAtUtc,
+    bool CanUserDelete);
+
+public sealed record CharityPledgeAdminRow(
+    Guid Id,
+    Guid UserId,
+    string UserDisplayName,
+    string UserUpn,
+    string? PersonnelCode,
+    decimal Amount,
+    CharityPledgeMode Mode,
+    int StartPersianYear,
+    int StartPersianMonth,
+    int? EndPersianYear,
+    int? EndPersianMonth,
+    string? Note,
+    bool IsConfirmed,
+    DateTimeOffset CreatedAtUtc,
+    DateTimeOffset? ResultsExportedAtUtc);
 
 public interface ICharityPledgeService
 {
@@ -42,5 +61,18 @@ public interface ICharityPledgeService
     public Task DeleteAsync(
         PortalActor actor,
         Guid pledgeId,
+        CancellationToken cancellationToken = default);
+
+    public Task<IReadOnlyList<CharityPledgeAdminRow>> ListAllForAdminAsync(
+        PortalActor actor,
+        CancellationToken cancellationToken = default);
+
+    public Task DeleteAsAdminAsync(
+        PortalActor actor,
+        Guid pledgeId,
+        CancellationToken cancellationToken = default);
+
+    public Task<byte[]> ExportExcelAndLockAsync(
+        PortalActor actor,
         CancellationToken cancellationToken = default);
 }

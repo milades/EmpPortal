@@ -205,6 +205,7 @@ builder.Services.AddScoped<IFormReportingService, FormReportingService>();
 builder.Services.AddScoped<IPortalAccessEvaluator, PortalAccessEvaluator>();
 builder.Services.AddScoped<IPortalAccessAdministrationService, PortalAccessAdministrationService>();
 builder.Services.AddScoped<IPayslipSettingsService, PayslipSettingsService>();
+builder.Services.AddScoped<IPayslipReportService, PayslipReportService>();
 builder.Services.AddScoped<IPersonnelFileService, PersonnelFileService>();
 builder.Services.AddScoped<ICharityPledgeService, CharityPledgeService>();
 builder.Services.AddScoped<IEmployeeTabularQuery, EmployeeTabularQuery>();
@@ -226,6 +227,12 @@ builder.Services.AddOptions<FormPdfOptions>()
             builder.Environment.IsDevelopment() &&
             string.Equals(options.License, "Evaluation", StringComparison.OrdinalIgnoreCase),
         "Forms:Pdf:License باید Community، Professional یا Enterprise باشد؛ Evaluation فقط در Development مجاز است.")
+    .ValidateOnStart();
+builder.Services.AddOptions<PayslipReportOptions>()
+    .BindConfiguration(PayslipReportOptions.SectionName)
+    .Validate(
+        options => !string.IsNullOrWhiteSpace(options.TemplateRelativePath),
+        "Payslip:Report:TemplateRelativePath باید مسیر فایل .mrt را مشخص کند.")
     .ValidateOnStart();
 builder.Services.AddScoped<PortalCookieAuthenticationEvents>();
 builder.Services.AddScoped<CircuitHandler, SessionCircuitHandler>();
@@ -299,6 +306,15 @@ else
 
 var app = builder.Build();
 
+if (app.Environment.IsDevelopment())
+{
+    await using AsyncServiceScope migrationScope = app.Services.CreateAsyncScope();
+    IDbContextFactory<PortalDbContext> dbContextFactory =
+        migrationScope.ServiceProvider.GetRequiredService<IDbContextFactory<PortalDbContext>>();
+    await using PortalDbContext migrationDbContext = await dbContextFactory.CreateDbContextAsync();
+    await migrationDbContext.Database.MigrateAsync();
+}
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
@@ -324,13 +340,18 @@ app.Use(async (httpContext, next) =>
 
 app.Use(async (httpContext, next) =>
 {
+    bool allowsSameOriginFrame = httpContext.Request.Path.StartsWithSegments(
+        "/api/payslip/pdf",
+        StringComparison.OrdinalIgnoreCase);
+
     httpContext.Response.Headers.XContentTypeOptions = "nosniff";
-    httpContext.Response.Headers.XFrameOptions = "DENY";
+    httpContext.Response.Headers.XFrameOptions = allowsSameOriginFrame ? "SAMEORIGIN" : "DENY";
     httpContext.Response.Headers.Append(
         "Referrer-Policy",
         "strict-origin-when-cross-origin");
-    httpContext.Response.Headers.ContentSecurityPolicy =
-        "object-src 'none'; base-uri 'self'; frame-ancestors 'none'";
+    httpContext.Response.Headers.ContentSecurityPolicy = allowsSameOriginFrame
+        ? "object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
+        : "object-src 'none'; base-uri 'self'; frame-ancestors 'none'";
     httpContext.Response.Headers.Append(
         "Permissions-Policy",
         "camera=(), microphone=(), geolocation=()");
@@ -564,6 +585,69 @@ app.MapGet("/api/submissions/{submissionId:guid}/export.pdf", async (
     }
 }).RequireAuthorization("IdentityCookieOnly");
 
+app.MapGet("/api/payslip/pdf", async (
+    int year,
+    int month,
+    bool? download,
+    IPayslipReportService payslipReportService,
+    ClaimsPrincipal principal,
+    HttpContext httpContext) =>
+{
+    try
+    {
+        PayslipPdfResult pdf = await payslipReportService.RenderMyPayslipPdfAsync(
+            PortalActorFactory.Create(principal, httpContext),
+            year,
+            month,
+            httpContext.RequestAborted);
+        httpContext.Response.Headers.CacheControl = "no-store";
+        if (download == true)
+        {
+            return Results.File(pdf.Content, pdf.ContentType, pdf.FileName);
+        }
+
+        return Results.File(pdf.Content, pdf.ContentType);
+    }
+    catch (UnauthorizedAccessException)
+    {
+        return Results.Forbid();
+    }
+    catch (ArgumentOutOfRangeException exception)
+    {
+        return Results.BadRequest(new { error = "invalid_period", message = exception.Message });
+    }
+    catch (InvalidOperationException exception)
+    {
+        return Results.BadRequest(new { error = "payslip_render_failed", message = exception.Message });
+    }
+}).RequireAuthorization("IdentityCookieOnly");
+
+app.MapGet("/api/charity/export.xlsx", async (
+    ICharityPledgeService charityPledgeService,
+    ClaimsPrincipal principal,
+    HttpContext httpContext) =>
+{
+    try
+    {
+        byte[] content = await charityPledgeService.ExportExcelAndLockAsync(
+            PortalActorFactory.Create(principal, httpContext),
+            httpContext.RequestAborted);
+        httpContext.Response.Headers.CacheControl = "no-store";
+        return Results.File(
+            content,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            $"charity-pledges-{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
+    }
+    catch (UnauthorizedAccessException)
+    {
+        return Results.Forbid();
+    }
+    catch (InvalidOperationException exception)
+    {
+        return Results.BadRequest(new { error = "charity_export_failed", message = exception.Message });
+    }
+}).RequireAuthorization("IdentityCookieOnly");
+
 if (app.Environment.IsDevelopment())
 {
     app.MapGet("/auth/sso", async (
@@ -661,5 +745,7 @@ static DateTimeOffset? ParseReportDate(string? value, bool endOfDay)
     DateTime local = date.ToDateTime(endOfDay ? TimeOnly.MaxValue : TimeOnly.MinValue);
     return new DateTimeOffset(local, TimeZoneInfo.Local.GetUtcOffset(local)).ToUniversalTime();
 }
+//Stimulsoft.Base.StiLicense.Key = "6vJhGtLLLz2GNviWmUTrhSqnOItdDwjBylQzQcAOiHl2AD0gPVknKsaW0un+3PuM6TTcPMUAWEURKXNso0e5OFPaZYasFtsxNoDemsFOXbvf7SIcnyAkFX/4u37NTfx7g+0IqLXw6QIPolr1PvCSZz8Z5wjBNakeCVozGGOiuCOQDy60XNqfbgrOjxgQ5y/u54K4g7R/xuWmpdx5OMAbUbcy3WbhPCbJJYTI5Hg8C/gsbHSnC2EeOCuyA9ImrNyjsUHkLEh9y4WoRw7lRIc1x+dli8jSJxt9C+NYVUIqK7MEeCmmVyFEGN8mNnqZp4vTe98kxAr4dWSmhcQahHGuFBhKQLlVOdlJ/OT+WPX1zS2UmnkTrxun+FWpCC5bLDlwhlslxtyaN9pV3sRLO6KXM88ZkefRrH21DdR+4j79HA7VLTAsebI79t9nMgmXJ5hB1JKcJMUAgWpxT7C7JUGcWCPIG10NuCd9XQ7H4ykQ4Ve6J2LuNo9SbvP6jPwdfQJB6fJBnKg4mtNuLMlQ4pnXDc+wJmqgw25NfHpFmrZYACZOtLEJoPtMWxxwDzZEYYfT";
+Stimulsoft.Base.StiLicense.Key = "6vJhGtLLLz2GNviWmUTrhSqnOItdDwjBylQzQcAOiHkO46nMQvol4ASeg91in+mGJLnn2KMIpg3eSXQSgaFOm15+0lhekKip+wRGMwXsKpHAkTvorOFqnpF9rchcYoxHXtjNDLiDHZGTIWq6D/2q4k/eiJm9fV6FdaJIUbWGS3whFWRLPHWCBsWnalqTdZlP9knjaWclfjmUKf2Ksc5btMD6pmR7ZHQfHXfdgYK7tLR1rqtxYxBzOPq3LIBvd3spkQhKb07LTZQoyQ3vmRSMALmJSS6ovIS59XPS+oSm8wgvuRFqE1im111GROa7Ww3tNJTA45lkbXX+SocdwXvEZyaaq61Uc1dBg+4uFRxvyRWvX5WDmJz1X0VLIbHpcIjdEDJUvVAN7Z+FW5xKsV5ySPs8aegsY9ndn4DmoZ1kWvzUaz+E1mxMbOd3tyaNnmVhPZeIBILmKJGN0BwnnI5fu6JHMM/9QR2tMO1Z4pIwae4P92gKBrt0MqhvnU1Q6kIaPPuG2XBIvAWykVeH2a9EP6064e11PFCBX4gEpJ3XFD0peE5+ddZh+h495qUc1H2B";
 
 public partial class Program;

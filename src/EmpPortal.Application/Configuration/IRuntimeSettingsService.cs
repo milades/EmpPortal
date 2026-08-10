@@ -5,6 +5,10 @@ public interface IRuntimeSettingsService
     public Task<IReadOnlyList<RuntimeSettingItem>> GetAllAsync(
         CancellationToken cancellationToken = default);
 
+    public Task<string?> GetValueAsync(
+        string key,
+        CancellationToken cancellationToken = default);
+
     public Task UpdateAsync(
         string key,
         string value,

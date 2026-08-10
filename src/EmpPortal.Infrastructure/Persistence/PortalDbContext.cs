@@ -198,6 +198,7 @@ public sealed class PortalDbContext(DbContextOptions<PortalDbContext> options)
             entity.Property(pledge => pledge.Mode).HasConversion<int>();
             entity.Property(pledge => pledge.Note).HasMaxLength(500);
             entity.HasIndex(pledge => new { pledge.UserId, pledge.CreatedAtUtc });
+            entity.HasIndex(pledge => pledge.ResultsExportedAtUtc);
             entity.HasOne<ApplicationUser>()
                 .WithMany()
                 .HasForeignKey(pledge => pledge.UserId)
@@ -209,6 +210,10 @@ public sealed class PortalDbContext(DbContextOptions<PortalDbContext> options)
             entity.HasOne<ApplicationUser>()
                 .WithMany()
                 .HasForeignKey(pledge => pledge.UpdatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(pledge => pledge.ResultsExportedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }

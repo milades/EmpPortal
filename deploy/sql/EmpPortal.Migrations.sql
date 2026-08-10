@@ -953,6 +953,55 @@ BEGIN
     VALUES (N'20260809173807_AddPersonnelCharityDynamicRoles', N'10.0.10');
 END;
 
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260810203604_AddCharityExportLock'
+)
+BEGIN
+    ALTER TABLE [hr].[CharityPledges] ADD [ResultsExportedAtUtc] datetimeoffset NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260810203604_AddCharityExportLock'
+)
+BEGIN
+    ALTER TABLE [hr].[CharityPledges] ADD [ResultsExportedByUserId] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260810203604_AddCharityExportLock'
+)
+BEGIN
+    CREATE INDEX [IX_CharityPledges_ResultsExportedAtUtc] ON [hr].[CharityPledges] ([ResultsExportedAtUtc]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260810203604_AddCharityExportLock'
+)
+BEGIN
+    CREATE INDEX [IX_CharityPledges_ResultsExportedByUserId] ON [hr].[CharityPledges] ([ResultsExportedByUserId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260810203604_AddCharityExportLock'
+)
+BEGIN
+    ALTER TABLE [hr].[CharityPledges] ADD CONSTRAINT [FK_CharityPledges_Users_ResultsExportedByUserId] FOREIGN KEY ([ResultsExportedByUserId]) REFERENCES [identity].[Users] ([Id]) ON DELETE NO ACTION;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260810203604_AddCharityExportLock'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260810203604_AddCharityExportLock', N'10.0.10');
+END;
+
 COMMIT;
 GO
 

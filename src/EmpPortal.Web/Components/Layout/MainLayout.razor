@@ -1,6 +1,8 @@
 @inherits LayoutComponentBase
 @using EmpPortal.Application.Authorization
+@using EmpPortal.Application.Configuration
 @inject IConfiguration Configuration
+@inject IRuntimeSettingsService RuntimeSettings
 @inject EmpPortal.Web.Services.IConfirmationService ConfirmationService
 @inject NavigationManager NavigationManager
 @inject EmpPortal.Web.Security.PortalActorFactory ActorFactory
@@ -45,7 +47,6 @@
                             <NavLink href="/services/payslip" @onclick="CloseSidebar">
                                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10a2 2 0 0 1 2 2v14l-3-2-3 2-3-2-3 2V5a2 2 0 0 1 2-2Z" /><path d="M9 8h6M9 12h6" /></svg>
                                 <span>فیش حقوقی من</span>
-                                <em class="menu-soon">به‌زودی</em>
                             </NavLink>
                         }
                         @if (Has(PortalResources.PayslipSettings))
@@ -64,7 +65,7 @@
                         }
                     }
 
-                    @if (HasAny(PortalResources.FormsEvents, PortalResources.FoodView, PortalResources.AssetsView, PortalResources.CharityView))
+                    @if (HasAny(PortalResources.FormsEvents, PortalResources.FoodView, PortalResources.AssetsView, PortalResources.CharityView, PortalResources.CharityManage))
                     {
                         <span class="menu-caption">خدمات کارکنان</span>
                         @if (Has(PortalResources.FormsEvents))
@@ -76,11 +77,24 @@
                         }
                         @if (Has(PortalResources.FoodView))
                         {
-                            <NavLink href="/services/food" @onclick="CloseSidebar">
-                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11h16v2a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6v-2Z" /><path d="M8 11V5M12 11V3M16 11V6" /></svg>
-                                <span>رزرو غذا</span>
-                                <em class="menu-soon">به‌زودی</em>
-                            </NavLink>
+                            @if (!string.IsNullOrWhiteSpace(foodReservationUrl))
+                            {
+                                <a class="sidebar-external-link"
+                                   href="@foodReservationUrl"
+                                   target="_blank"
+                                   rel="noopener noreferrer"
+                                   @onclick="CloseSidebar">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11h16v2a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6v-2Z" /><path d="M8 11V5M12 11V3M16 11V6" /></svg>
+                                    <span>رزرو غذا</span>
+                                </a>
+                            }
+                            else
+                            {
+                                <NavLink href="/services/food" @onclick="CloseSidebar">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11h16v2a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6v-2Z" /><path d="M8 11V5M12 11V3M16 11V6" /></svg>
+                                    <span>رزرو غذا</span>
+                                </NavLink>
+                            }
                         }
                         @if (Has(PortalResources.AssetsView))
                         {
@@ -96,16 +110,13 @@
                                 <span>انفاق</span>
                             </NavLink>
                         }
-                    }
-
-                    @if (Has(PortalResources.SecurityView))
-                    {
-                        <span class="menu-caption">امنیت</span>
-                        <NavLink href="/services/security" @onclick="CloseSidebar">
-                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v6c0 5 3.2 8.4 7 9 3.8-.6 7-4 7-9V6l-7-3Z" /><path d="m9.5 12 1.8 1.8L15 10" /></svg>
-                            <span>امنیت</span>
-                            <em class="menu-soon">به‌زودی</em>
-                        </NavLink>
+                        @if (Has(PortalResources.CharityManage))
+                        {
+                            <NavLink href="/services/charity-admin" @onclick="CloseSidebar">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v4H4V5Zm0 7h16v7H4v-7Zm4 2.5h8" /></svg>
+                                <span>مدیریت انفاق</span>
+                            </NavLink>
+                        }
                     }
 
                     @if (Has(PortalResources.FormsAdmin))
@@ -188,6 +199,7 @@
     private bool sidebarOpen;
     private bool isConfirmingLogout;
     private IReadOnlySet<string> grantedResources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    private string? foodReservationUrl;
     private string PortalTitle => Configuration["Portal:Title"] ?? "پرتال کارمندی";
 
     protected override async Task OnInitializedAsync()
@@ -197,6 +209,11 @@
             PortalActor actor = await ActorFactory.CreateAsync();
             await AccessEvaluator.EnsureDefaultsAsync();
             grantedResources = await AccessEvaluator.GetGrantedResourceKeysAsync(actor);
+            if (Has(PortalResources.FoodView))
+            {
+                foodReservationUrl = await RuntimeSettings.GetValueAsync(
+                    PortalRuntimeSettingKeys.FoodReservationExternalUrl);
+            }
         }
         catch (UnauthorizedAccessException)
         {
