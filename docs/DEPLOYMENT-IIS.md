@@ -77,14 +77,17 @@ Copy-Item `
 می‌شوند. مقادیر ذخیره‌شده در SQL در راه‌اندازی بعدی بر فایل JSON تقدم دارند؛ بنابراین پس از اولین
 ذخیره در پنل، تغییر همان کلید در فایل JSON اثری ندارد و باید از خود پنل تغییر داده شود.
 
-تغییرات پنل شامل عنوان پورتال، Domain/Base DN/LDAPS، فعال‌بودن SSO یا ورود دستی، سیاست Session و
-عمر JWT است و پس از ذخیره به Restart کنترل‌شده Application Pool نیاز دارد. Connection String،
-`AllowedHosts`، مدیر Bootstrap، فهرست DCها، مسیر Key Ring و Thumbprint گواهی‌ها فقط در فایل
-Production یا Secret Store مورد تأیید سازمان نگهداری می‌شوند. پس از تغییر فایل یا پنل:
+تغییرات پنل شامل عنوان و لینک‌ها، Domain/Base DN/DC/LDAPS، روش‌های ورود، سیاست Session،
+محدودسازی Login، عمر JWT، QuestPDF، قالب فیش، Viewهای خارجی و Logging است. ذخیره تنظیمات وابسته
+به Startup، Restart کنترل‌شده برنامه را خودکار زمان‌بندی می‌کند. Connection Stringها،
+`AllowedHosts`، مدیر Bootstrap، مسیر Key Ring و Thumbprint گواهی‌ها فقط در فایل Production یا
+Secret Store مورد تأیید سازمان نگهداری می‌شوند. فقط پس از تغییر مستقیم فایل Bootstrap اجرا کنید:
 
 ```powershell
 Restart-WebAppPool -Name 'EmpPortal'
 ```
+
+برای تغییرات پنل اجرای دستی فرمان بالا لازم نیست.
 
 برنامه در نبود Connection String، AD، Key Ring یا Certificateهای لازم عمداً Fail-fast
 می‌شود. `TrustServerCertificate=True` در Production مجاز نیست.

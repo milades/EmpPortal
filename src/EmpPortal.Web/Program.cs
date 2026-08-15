@@ -214,6 +214,7 @@ builder.Services.Configure<ExternalTabularSourceOptions>(
 builder.Services.AddScoped<FormActorFactory>();
 builder.Services.AddScoped<PortalActorFactory>();
 builder.Services.AddScoped<IConfirmationService, SweetAlertConfirmationService>();
+builder.Services.AddSingleton<ApplicationRestartService>();
 builder.Services.AddOptions<FormPdfOptions>()
     .BindConfiguration(FormPdfOptions.SectionName)
     .Validate(

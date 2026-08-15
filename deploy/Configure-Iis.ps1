@@ -64,6 +64,7 @@ else {
     Set-ItemProperty "IIS:\Sites\$SiteName" -Name physicalPath -Value $resolvedPhysicalPath
     Set-ItemProperty "IIS:\Sites\$SiteName" -Name applicationPool -Value $AppPoolName
 }
+Set-ItemProperty "IIS:\Sites\$SiteName" -Name applicationDefaults.preloadEnabled -Value $true
 
 $existingHttpsBinding = Get-WebBinding -Name $SiteName -Protocol https |
     Where-Object { $_.bindingInformation -eq "*:$HttpsPort`:$HostName" }

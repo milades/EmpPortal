@@ -485,3 +485,4 @@ $RECYCLE.BIN/
 # EmpPortal local development state
 .local/
 artifacts/
+deploy/appsettings.Production.json

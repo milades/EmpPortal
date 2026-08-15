@@ -1,5 +1,3 @@
-:setvar ApplicationLogin "CORP\\EmpPortalGmsa$"
-
 USE [EmpPortal];
 GO
 

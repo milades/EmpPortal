@@ -19,34 +19,43 @@ IIS یا Secret Store سازمانی خوانده می‌شوند.
 | `Jwt:Issuer` | Security | بله | ترجیحاً URL نهایی HTTPS |
 | `Jwt:Audience` | Security | بله | شناسه API |
 | `Jwt:SigningCertificateThumbprint` | Security | بله | Certificate امضای JWT، جدا از TLS |
-| `Forms:Pdf:License` | Legal/Operations | بله | `Community` فقط در صورت احراز شرایط رسمی؛ در غیر این صورت مجوز خریداری‌شده |
-| `Forms:Pdf:RegularFontPath` | Operations | بله | مسیر فونت عادی محلی PDF نسبت به Content Root یا مسیر مطلق |
-| `Forms:Pdf:BoldFontPath` | Operations | بله | مسیر فونت Bold محلی PDF نسبت به Content Root یا مسیر مطلق |
+| `ExternalData:*:ConnectionString` | DBA/Operations | بله | اتصال منابع مزایا و اموال |
+| `Payslip:Report:LicenseKey` | Legal/Operations | بله | لایسنس موجود Stimulsoft؛ طبق تصمیم پروژه از پنل قابل تغییر نیست |
 | `DevelopmentIdentity:*` | Development | بله | فقط Fake AD؛ در Production ثبت نمی‌شود |
 
 ## Runtime Settings قابل مدیریت
 
 تنها نقش `SystemAdministrator` به صفحه `/admin/settings` دسترسی دارد. همه تغییرها Audit
-می‌شوند و در نسخه فعلی برای اعمال نیازمند Restart کنترل‌شده هستند.
+می‌شوند. اگر حداقل یک مقدار وابسته به Startup تغییر کند، برنامه Restart کنترل‌شده را زمان‌بندی
+می‌کند و IIS آن را با مقادیر جدید اجرا می‌کند.
 
 | کلید | مقدار اولیه | محدودیت |
 |---|---|---|
 | `ActiveDirectory:DomainFqdn` | تعیین توسط AD Team | نام کامل DNS دامنه |
 | `ActiveDirectory:BaseDn` | تعیین توسط AD Team | Base DN معتبر |
+| `ActiveDirectory:DomainControllers:0` | DC اصلی | FQDN سرور LDAPS اول |
+| `ActiveDirectory:DomainControllers:1` | DC جایگزین | FQDN سرور LDAPS دوم |
 | `ActiveDirectory:LdapsPort` | `636` | ۱ تا ۶۵۵۳۵ |
 | `ActiveDirectory:OperationTimeoutSeconds` | `10` | ۱ تا ۶۰ ثانیه |
 | `Authentication:SsoEnabled` | `true` | Boolean |
 | `Authentication:ManualLoginEnabled` | `true` | حداقل یکی از دو روش باید فعال بماند |
+| `Login:AttemptLimit` | `5` | ۱ تا ۲۰ تلاش |
+| `Login:AttemptWindowMinutes` | `15` | ۱ تا ۶۰ دقیقه |
 | `Session:AbsoluteMinutes` | `180` | ۳۰ تا ۷۲۰ دقیقه |
 | `Session:IdleMinutes` | `30` | ۵ تا ۱۸۰ و کوچک‌تر از عمر مطلق |
 | `Session:MaxConcurrentPerUser` | `3` | ۱ تا ۱۰ نشست |
 | `Session:AdRevalidationSeconds` | `15` | ۱۵ تا ۶۰ ثانیه برای Circuit باز |
 | `Jwt:AccessTokenMinutes` | `5` | ۱ تا ۱۵ دقیقه و حداکثر تا پایان Session |
 | `Portal:Title` | `پرتال کارمندی` | حداکثر ۱۲۰ نویسه |
-
-`ActiveDirectory:DomainControllers` عمداً از UI فاز اول خارج است؛ تا زمان مشخص شدن
-توپولوژی DC، این مقدار فقط توسط Operations در فایل محیطی تعیین می‌شود. ترتیب آرایه، ترتیب
-Failover است و اگر خالی باشد `DomainFqdn` به‌عنوان endpoint استفاده می‌شود.
+| `Portal:FoodReservationExternalUrl` | خالی | URL اختیاری HTTP/HTTPS؛ اعمال فوری |
+| `Forms:Pdf:License` | `Professional` | Community، Professional یا Enterprise |
+| `Forms:Pdf:RegularFontPath` | فونت Vazirmatn | مسیر فونت معمولی |
+| `Forms:Pdf:BoldFontPath` | فونت Vazirmatn | مسیر فونت ضخیم |
+| `Payslip:Report:TemplateRelativePath` | `Reports/Payslip.mrt` | مسیر قالب گزارش |
+| `Payslip:Report:*Variable` | نام‌های پیش‌فرض | نام متغیرهای قالب؛ لایسنس را شامل نمی‌شود |
+| `ExternalData:*:ViewName` | Viewهای نمونه | نام View منبع خارجی |
+| `ExternalData:*:PersonnelCodeColumn` | `PersonnelCode` | نام ستون کد پرسنلی |
+| `Logging:LogLevel:*` | Information/Warning | سطح استاندارد Microsoft Logging |
 
 ## قواعد امنیتی
 
@@ -58,5 +67,5 @@ Failover است و اگر خالی باشد `DomainFqdn` به‌عنوان endpo
   Plan اعمال شود.
 - تغییر `BootstrapAdministrator:Upn` نقش مدیرهای قبلی را حذف نمی‌کند؛ مدیریت Role پس از
   Bootstrap از SQL و پنل مدیریتی انجام می‌شود.
-- مجوز PDF یک اعلام حقوقی/عملیاتی است و از پنل Runtime قابل تغییر نیست. برنامه در Production با
-  مقدار خالی یا `Evaluation` شروع نمی‌شود.
+- مجوز QuestPDF از پنل قابل تغییر است، اما برنامه در Production با مقدار خالی یا `Evaluation`
+  شروع نمی‌شود. این تنظیم با لایسنس Stimulsoft فیش حقوقی مستقل است.

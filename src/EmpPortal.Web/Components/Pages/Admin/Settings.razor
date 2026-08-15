@@ -5,10 +5,12 @@
 @using System.Security.Claims
 @using EmpPortal.Application.Authorization
 @using EmpPortal.Application.Configuration
+@using EmpPortal.Web.Services
 @using Microsoft.AspNetCore.Authorization
 
 @inject IRuntimeSettingsService RuntimeSettingsService
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ApplicationRestartService ApplicationRestartService
 
 <PageTitle>تنظیمات سامانه | پرتال کارمندی</PageTitle>
 
@@ -17,7 +19,7 @@
         <div>
             <span class="eyebrow">مدیریت سامانه</span>
             <h1 id="settings-title">تنظیمات عملیاتی</h1>
-            <p>تغییرات ثبت و ممیزی می‌شوند و پس از راه‌اندازی مجدد برنامه اعمال خواهند شد.</p>
+            <p>همه تنظیمات عملیاتی از این صفحه مدیریت می‌شوند. پس از ذخیره، در صورت نیاز برنامه به‌صورت کنترل‌شده Restart می‌شود.</p>
         </div>
     </header>
 
@@ -36,31 +38,61 @@
             <DataAnnotationsValidator />
             <ValidationSummary class="validation-summary" />
 
-            <div class="settings-grid">
-                @foreach (SettingInput setting in Model.Settings)
-                {
-                    <article class="setting-card">
-                        <label for="@GetInputId(setting.Key)">@setting.DisplayName</label>
-                        <p>@setting.Description</p>
-                        <div class="setting-control">
-                            <span class="setting-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" focusable="false">
-                                    <circle cx="12" cy="12" r="3" />
-                                    <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 9 19.37a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.63 15 1.7 1.7 0 0 0 3.08 14H3v-4h.08A1.7 1.7 0 0 0 4.63 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.63h.01A1.7 1.7 0 0 0 10 3.08V3h4v.08A1.7 1.7 0 0 0 15 4.63a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.37 9v.01A1.7 1.7 0 0 0 20.92 10H21v4h-.08A1.7 1.7 0 0 0 19.4 15Z" />
-                                </svg>
-                            </span>
-                            <InputTextOnInput id="@GetInputId(setting.Key)"
-                                              class="setting-input"
-                                              dir="auto"
-                                              required
-                                              maxlength="2000"
-                                              @bind-Value="setting.Value" />
-                        </div>
-                        <ValidationMessage For="() => setting.Value" />
-                        <code dir="ltr">@setting.Key</code>
-                    </article>
-                }
-            </div>
+            <aside class="bootstrap-note">
+                <strong>تنظیمات پایه استقرار</strong>
+                <span>اتصال دیتابیس اصلی، AllowedHosts و گواهی‌های امنیتی برای جلوگیری از قفل‌شدن پرتال فقط در فایل یکپارچه Production نگهداری می‌شوند.</span>
+            </aside>
+
+            @foreach (IGrouping<string, SettingInput> group in Model.Settings.GroupBy(setting => setting.Group))
+            {
+                <section class="settings-group">
+                    <header class="settings-group-heading">
+                        <h2>@group.Key</h2>
+                    </header>
+                    <div class="settings-grid">
+                    @foreach (SettingInput setting in group)
+                    {
+                        <article class="setting-card">
+                            <div class="setting-title-row">
+                                <label for="@GetInputId(setting.Key)">@setting.DisplayName</label>
+                                <span class="apply-badge @(setting.RequiresRestart ? "restart" : "immediate")">
+                                    @(setting.RequiresRestart ? "اعمال با Restart" : "اعمال فوری")
+                                </span>
+                            </div>
+                            <p>@setting.Description</p>
+                            <div class="setting-control">
+                                <span class="setting-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" focusable="false">
+                                        <circle cx="12" cy="12" r="3" />
+                                        <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 9 19.37a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.63 15 1.7 1.7 0 0 0 3.08 14H3v-4h.08A1.7 1.7 0 0 0 4.63 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.63h.01A1.7 1.7 0 0 0 10 3.08V3h4v.08A1.7 1.7 0 0 0 15 4.63a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.37 9v.01A1.7 1.7 0 0 0 20.92 10H21v4h-.08A1.7 1.7 0 0 0 19.4 15Z" />
+                                    </svg>
+                                </span>
+                                @if (setting.InputKind is RuntimeSettingInputKind.Boolean or RuntimeSettingInputKind.Select)
+                                {
+                                    <InputSelect id="@GetInputId(setting.Key)" class="setting-input" @bind-Value="setting.Value">
+                                        @foreach (string option in setting.AllowedValues)
+                                        {
+                                            <option value="@option">@GetOptionLabel(setting, option)</option>
+                                        }
+                                    </InputSelect>
+                                }
+                                else
+                                {
+                                    <InputTextOnInput id="@GetInputId(setting.Key)"
+                                                      class="setting-input"
+                                                      dir="auto"
+                                                      required="@setting.IsRequired"
+                                                      maxlength="2000"
+                                                      @bind-Value="setting.Value" />
+                                }
+                            </div>
+                            <ValidationMessage For="() => setting.Value" />
+                            <code dir="ltr">@setting.Key</code>
+                        </article>
+                    }
+                    </div>
+                </section>
+            }
 
             <div class="settings-actions">
                 <LoadingSubmitButton CssClass="primary-button"
@@ -80,8 +112,12 @@
     private bool isSaving;
     private string? statusMessage;
     private string statusClass = string.Empty;
-    private bool AreSettingsValid => Model.Settings.All(setting =>
-        !string.IsNullOrWhiteSpace(setting.Value) && setting.Value.Length <= 2000);
+    private bool AreSettingsValid =>
+        Model.Settings.All(setting =>
+            (!setting.IsRequired || !string.IsNullOrWhiteSpace(setting.Value)) && setting.Value.Length <= 2000) &&
+        (GetBoolean("Authentication:SsoEnabled") || GetBoolean("Authentication:ManualLoginEnabled")) &&
+        GetInteger("Session:IdleMinutes") < GetInteger("Session:AbsoluteMinutes") &&
+        GetInteger("Jwt:AccessTokenMinutes") < GetInteger("Session:AbsoluteMinutes");
 
     protected override async Task OnInitializedAsync()
     {
@@ -93,7 +129,12 @@
                 Key = setting.Key,
                 Value = setting.Value,
                 DisplayName = setting.DisplayName,
-                Description = setting.Description
+                Description = setting.Description,
+                Group = setting.Group,
+                InputKind = setting.InputKind,
+                IsRequired = setting.IsRequired,
+                AllowedValues = setting.AllowedValues,
+                RequiresRestart = setting.RequiresRestart
             });
             originalValues[setting.Key] = setting.Value;
         }
@@ -144,9 +185,20 @@
             }
 
             statusClass = "success";
-            statusMessage = changedSettings.Length == 0
-                ? "تغییری برای ذخیره وجود نداشت."
-                : "تنظیمات ذخیره شد؛ برای اعمال، برنامه باید راه‌اندازی مجدد شود.";
+            bool requiresRestart = changedSettings.Any(setting => setting.RequiresRestart);
+            if (changedSettings.Length == 0)
+            {
+                statusMessage = "تغییری برای ذخیره وجود نداشت.";
+            }
+            else if (requiresRestart)
+            {
+                ApplicationRestartService.ScheduleRestart(TimeSpan.FromSeconds(3));
+                statusMessage = "تنظیمات ذخیره شد. پرتال تا چند ثانیه دیگر Restart و با تنظیمات جدید اجرا می‌شود.";
+            }
+            else
+            {
+                statusMessage = "تنظیمات ذخیره و اعمال شد.";
+            }
         }
         catch (ArgumentException)
         {
@@ -162,6 +214,19 @@
     private static string GetInputId(string key) =>
         $"setting-{key.Replace(':', '-').ToLowerInvariant()}";
 
+    private static string GetOptionLabel(SettingInput setting, string option) =>
+        setting.InputKind == RuntimeSettingInputKind.Boolean
+            ? string.Equals(option, "true", StringComparison.OrdinalIgnoreCase) ? "فعال" : "غیرفعال"
+            : option;
+
+    private bool GetBoolean(string key) =>
+        bool.TryParse(Model.Settings.Single(setting => setting.Key == key).Value, out bool value) && value;
+
+    private int GetInteger(string key) =>
+        int.TryParse(Model.Settings.Single(setting => setting.Key == key).Value, out int value)
+            ? value
+            : int.MaxValue;
+
     private sealed class SettingsInputModel
     {
         public List<SettingInput> Settings { get; } = [];
@@ -171,12 +236,21 @@
     {
         public string Key { get; init; } = string.Empty;
 
-        [Required(ErrorMessage = "مقدار تنظیم الزامی است.")]
         [StringLength(2000, ErrorMessage = "مقدار تنظیم بیش از حد طولانی است.")]
         public string Value { get; set; } = string.Empty;
 
         public string DisplayName { get; init; } = string.Empty;
 
         public string Description { get; init; } = string.Empty;
+
+        public string Group { get; init; } = string.Empty;
+
+        public RuntimeSettingInputKind InputKind { get; init; }
+
+        public bool IsRequired { get; init; }
+
+        public IReadOnlyList<string> AllowedValues { get; init; } = [];
+
+        public bool RequiresRestart { get; init; }
     }
 }

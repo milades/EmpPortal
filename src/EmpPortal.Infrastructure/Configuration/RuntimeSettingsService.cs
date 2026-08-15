@@ -15,23 +15,36 @@ public sealed class RuntimeSettingsService(
 {
     private static readonly RuntimeSettingDefinition[] Definitions =
     [
-        Text("ActiveDirectory:DomainFqdn", "نام دامنه", "نام کامل DNS دامنه سازمانی", 253),
-        Text("ActiveDirectory:BaseDn", "مبنای جستجوی AD", "Base DN برای جستجوی کاربران", 500),
-        Integer("ActiveDirectory:LdapsPort", "پورت LDAPS", "پورت امن LDAP", 1, 65535),
-        Integer("ActiveDirectory:OperationTimeoutSeconds", "مهلت پاسخ AD", "مهلت هر عملیات بر حسب ثانیه", 1, 60),
-        Boolean("Authentication:SsoEnabled", "ورود یکپارچه", "فعال‌بودن Windows SSO"),
-        Boolean("Authentication:ManualLoginEnabled", "ورود دستی", "فعال‌بودن ورود UPN و رمز عبور"),
-        Integer("Session:AbsoluteMinutes", "حداکثر نشست", "حداکثر عمر نشست بر حسب دقیقه", 30, 720),
-        Integer("Session:IdleMinutes", "مهلت عدم فعالیت", "مهلت عدم فعالیت بر حسب دقیقه", 5, 180),
-        Integer("Session:MaxConcurrentPerUser", "نشست هم‌زمان", "حداکثر نشست فعال هر کاربر", 1, 10),
-        Integer("Session:AdRevalidationSeconds", "بازاعتبارسنجی AD", "فاصله کنترل وضعیت حساب بر حسب ثانیه", 15, 60),
-        Integer("Jwt:AccessTokenMinutes", "عمر JWT", "عمر Access Token بر حسب دقیقه", 1, 15),
-        Text("Portal:Title", "عنوان پرتال", "عنوان نمایشی سامانه", 120),
-        Url(
-            PortalRuntimeSettingKeys.FoodReservationExternalUrl,
-            "نشانی رزرو غذا",
-            "آدرس سامانه خارجی رزرو غذا که در منو و داشبورد در تب جدید باز می‌شود.",
-            maximumLength: 2000)
+        Text("ActiveDirectory:DomainFqdn", "نام دامنه", "نام کامل DNS دامنه سازمانی", "Active Directory", 253),
+        Text("ActiveDirectory:BaseDn", "مبنای جستجوی AD", "Base DN برای جستجوی کاربران", "Active Directory", 500),
+        Text("ActiveDirectory:DomainControllers:0", "کنترل‌کننده دامنه اصلی", "FQDN نخستین Domain Controller دارای LDAPS", "Active Directory", 253),
+        Text("ActiveDirectory:DomainControllers:1", "کنترل‌کننده دامنه جایگزین", "FQDN دومین Domain Controller برای Failover", "Active Directory", 253),
+        Integer("ActiveDirectory:LdapsPort", "پورت LDAPS", "پورت امن LDAP", "Active Directory", 1, 65535),
+        Integer("ActiveDirectory:OperationTimeoutSeconds", "مهلت پاسخ AD", "مهلت هر عملیات بر حسب ثانیه", "Active Directory", 1, 60),
+        Boolean("Authentication:SsoEnabled", "ورود یکپارچه", "فعال‌بودن Windows SSO", "احراز هویت"),
+        Boolean("Authentication:ManualLoginEnabled", "ورود دستی", "فعال‌بودن ورود UPN و رمز عبور", "احراز هویت"),
+        Integer("Login:AttemptLimit", "سقف تلاش ورود", "حداکثر تلاش ورود دستی در بازه کنترل", "احراز هویت", 1, 20),
+        Integer("Login:AttemptWindowMinutes", "بازه کنترل ورود", "طول بازه محدودسازی ورود بر حسب دقیقه", "احراز هویت", 1, 60),
+        Integer("Session:AbsoluteMinutes", "حداکثر نشست", "حداکثر عمر نشست بر حسب دقیقه", "نشست کاربران", 30, 720),
+        Integer("Session:IdleMinutes", "مهلت عدم فعالیت", "مهلت عدم فعالیت بر حسب دقیقه", "نشست کاربران", 5, 180),
+        Integer("Session:MaxConcurrentPerUser", "نشست هم‌زمان", "حداکثر نشست فعال هر کاربر", "نشست کاربران", 1, 10),
+        Integer("Session:AdRevalidationSeconds", "بازاعتبارسنجی AD", "فاصله کنترل وضعیت حساب بر حسب ثانیه", "نشست کاربران", 15, 60),
+        Integer("Jwt:AccessTokenMinutes", "عمر JWT", "عمر Access Token بر حسب دقیقه", "توکن API", 1, 15),
+        Text("Portal:Title", "عنوان پرتال", "عنوان نمایشی سامانه", "ظاهر و لینک‌ها", 120),
+        Url(PortalRuntimeSettingKeys.FoodReservationExternalUrl, "نشانی رزرو غذا", "آدرس سامانه خارجی رزرو غذا", "ظاهر و لینک‌ها", 2000, required: false, requiresRestart: false),
+        Select("Forms:Pdf:License", "مجوز QuestPDF", "نوع مجوز تأییدشده برای تولید PDF", "فرم و PDF", ["Community", "Professional", "Enterprise"]),
+        Text("Forms:Pdf:RegularFontPath", "فونت معمولی PDF", "مسیر نسبی یا کامل فونت معمولی", "فرم و PDF", 1000),
+        Text("Forms:Pdf:BoldFontPath", "فونت ضخیم PDF", "مسیر نسبی یا کامل فونت ضخیم", "فرم و PDF", 1000),
+        Text("Payslip:Report:TemplateRelativePath", "قالب فیش حقوقی", "مسیر فایل گزارش Stimulsoft", "فیش حقوقی", 1000),
+        Text("Payslip:Report:PersonnelCodeVariable", "متغیر کد پرسنلی", "نام متغیر کد پرسنلی در قالب", "فیش حقوقی", 200),
+        Text("Payslip:Report:PersianYearVariable", "متغیر سال", "نام متغیر سال شمسی در قالب", "فیش حقوقی", 200),
+        Text("Payslip:Report:PersianMonthVariable", "متغیر ماه", "نام متغیر ماه شمسی در قالب", "فیش حقوقی", 200),
+        Text("ExternalData:Benefits:ViewName", "View مزایا", "نام کامل View مزایا", "داده‌های خارجی", 300),
+        Text("ExternalData:Benefits:PersonnelCodeColumn", "ستون کد پرسنلی مزایا", "نام ستون کد پرسنلی", "داده‌های خارجی", 200),
+        Text("ExternalData:Assets:ViewName", "View اموال", "نام کامل View اموال", "داده‌های خارجی", 300),
+        Text("ExternalData:Assets:PersonnelCodeColumn", "ستون کد پرسنلی اموال", "نام ستون کد پرسنلی", "داده‌های خارجی", 200),
+        Select("Logging:LogLevel:Default", "سطح لاگ عمومی", "حداقل سطح ثبت رویدادهای برنامه", "ثبت رویداد", ["Trace", "Debug", "Information", "Warning", "Error", "Critical", "None"]),
+        Select("Logging:LogLevel:Microsoft.AspNetCore", "سطح لاگ ASP.NET Core", "حداقل سطح ثبت رویدادهای فریم‌ورک", "ثبت رویداد", ["Trace", "Debug", "Information", "Warning", "Error", "Critical", "None"])
     ];
 
     public async Task<IReadOnlyList<RuntimeSettingItem>> GetAllAsync(
@@ -51,6 +64,11 @@ public sealed class RuntimeSettingsService(
                 storedSetting?.Value ?? configuration[definition.Key] ?? string.Empty,
                 definition.DisplayName,
                 definition.Description,
+                definition.Group,
+                definition.InputKind,
+                definition.IsRequired,
+                definition.IsSensitive,
+                definition.AllowedValues,
                 definition.RequiresRestart,
                 storedSetting?.UpdatedAtUtc);
         }).ToArray();
@@ -136,24 +154,38 @@ public sealed class RuntimeSettingsService(
         string key,
         string displayName,
         string description,
-        int maximumLength) =>
+        string group,
+        int maximumLength,
+        bool required = true,
+        bool requiresRestart = true) =>
         new(
             key,
             displayName,
             description,
-            RequiresRestart: true,
-            value => !string.IsNullOrWhiteSpace(value) && value.Length <= maximumLength);
+            group,
+            RuntimeSettingInputKind.Text,
+            required,
+            false,
+            [],
+            requiresRestart,
+            value => (!required || !string.IsNullOrWhiteSpace(value)) && value.Length <= maximumLength);
 
     private static RuntimeSettingDefinition Integer(
         string key,
         string displayName,
         string description,
+        string group,
         int minimum,
         int maximum) =>
         new(
             key,
             displayName,
             description,
+            group,
+            RuntimeSettingInputKind.Number,
+            true,
+            false,
+            [],
             RequiresRestart: true,
             value => int.TryParse(
                 value,
@@ -164,11 +196,17 @@ public sealed class RuntimeSettingsService(
     private static RuntimeSettingDefinition Boolean(
         string key,
         string displayName,
-        string description) =>
+        string description,
+        string group) =>
         new(
             key,
             displayName,
             description,
+            group,
+            RuntimeSettingInputKind.Boolean,
+            true,
+            false,
+            ["true", "false"],
             RequiresRestart: true,
             value => bool.TryParse(value, out _));
 
@@ -176,21 +214,47 @@ public sealed class RuntimeSettingsService(
         string key,
         string displayName,
         string description,
-        int maximumLength) =>
+        string group,
+        int maximumLength,
+        bool required,
+        bool requiresRestart = true) =>
         new(
             key,
             displayName,
             description,
-            RequiresRestart: false,
+            group,
+            RuntimeSettingInputKind.Url,
+            required,
+            false,
+            [],
+            requiresRestart,
             value =>
             {
                 if (string.IsNullOrWhiteSpace(value))
                 {
-                    return true;
+                    return !required;
                 }
 
                 return value.Length <= maximumLength &&
                     Uri.TryCreate(value, UriKind.Absolute, out Uri? uri) &&
                     (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
             });
+
+    private static RuntimeSettingDefinition Select(
+        string key,
+        string displayName,
+        string description,
+        string group,
+        IReadOnlyList<string> allowedValues) =>
+        new(
+            key,
+            displayName,
+            description,
+            group,
+            RuntimeSettingInputKind.Select,
+            true,
+            false,
+            allowedValues,
+            RequiresRestart: true,
+            value => allowedValues.Contains(value, StringComparer.OrdinalIgnoreCase));
 }

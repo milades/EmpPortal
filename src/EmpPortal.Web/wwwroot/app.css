@@ -2340,3 +2340,7 @@ button:disabled,
         break-inside: avoid;
     }
 }
+
+.login-heading h1[b-gptlxolaxl] {
+    font-size: clamp(1rem, 5vw, 1rem) !important;
+}
