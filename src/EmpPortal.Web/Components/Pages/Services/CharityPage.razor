@@ -73,7 +73,7 @@
     {
         <div class="loading-panel" role="status">در حال دریافت سوابق…</div>
     }
-    else if (pledges.Count == 0)
+    else if (result is null || result.Items.Count == 0)
     {
         <div class="empty-state"><h2>سابقه‌ای ثبت نشده</h2><p>اولین اعلام انفاق را از فرم بالا ثبت کنید.</p></div>
     }
@@ -85,7 +85,7 @@
                     <tr><th>مبلغ</th><th>نوع</th><th>بازه</th><th>وضعیت</th><th>زمان ثبت</th><th>یادداشت</th><th>عملیات</th></tr>
                 </thead>
                 <tbody>
-                    @foreach (CharityPledgeData pledge in pledges)
+                    @foreach (CharityPledgeData pledge in result.Items)
                     {
                         <tr>
                             <td>@pledge.Amount.ToString("N0", CultureInfo.InvariantCulture)</td>
@@ -111,6 +111,33 @@
                 </tbody>
             </table>
         </div>
+        <footer class="forms-pagination">
+            <span>نمایش @FormatNumber(FirstItemNumber) تا @FormatNumber(LastItemNumber) از @FormatNumber(result.TotalCount) سابقه</span>
+            <nav aria-label="صفحه‌بندی سوابق انفاق">
+                @if (result.Page > 1)
+                {
+                    <a class="page-control" href="@PageUrl(result.Page - 1)" aria-label="صفحه قبلی">قبلی</a>
+                }
+                else
+                {
+                    <span class="page-control disabled" aria-disabled="true">قبلی</span>
+                }
+                @foreach (int pageNumber in VisiblePages)
+                {
+                    <a class="page-number @(pageNumber == result.Page ? "active" : null)"
+                       href="@PageUrl(pageNumber)"
+                       aria-current="@(pageNumber == result.Page ? "page" : null)">@FormatNumber(pageNumber)</a>
+                }
+                @if (result.Page < TotalPages)
+                {
+                    <a class="page-control" href="@PageUrl(result.Page + 1)" aria-label="صفحه بعدی">بعدی</a>
+                }
+                else
+                {
+                    <span class="page-control disabled" aria-disabled="true">بعدی</span>
+                }
+            </nav>
+        </footer>
     }
 </section>
 
@@ -122,7 +149,7 @@
     ];
     private List<SearchableSelectOption> yearOptions = [];
     private List<SearchableSelectOption> monthOptions = [];
-    private List<CharityPledgeData> pledges = [];
+    private PagedResult<CharityPledgeData>? result;
     private bool isLoading = true;
     private bool isBusy;
     private string? message;
@@ -135,8 +162,35 @@
     private string endMonthValue = string.Empty;
     private string? note;
     private bool confirmed;
+    private const int PageSize = 10;
 
-    protected override async Task OnInitializedAsync()
+    [SupplyParameterFromQuery(Name = "page")]
+    public int Page { get; set; } = 1;
+
+    private int TotalPages => result is null
+        ? 1
+        : Math.Max(1, (int)Math.Ceiling(result.TotalCount / (double)result.PageSize));
+    private long FirstItemNumber => result is null || result.Items.Count == 0
+        ? 0
+        : (long)(result.Page - 1) * result.PageSize + 1;
+    private long LastItemNumber => result is null ? 0 : FirstItemNumber + result.Items.Count - 1;
+    private IEnumerable<int> VisiblePages
+    {
+        get
+        {
+            if (result is null)
+            {
+                return [];
+            }
+
+            int start = Math.Max(1, result.Page - 2);
+            int end = Math.Min(TotalPages, start + 4);
+            start = Math.Max(1, end - 4);
+            return Enumerable.Range(start, end - start + 1);
+        }
+    }
+
+    protected override void OnInitialized()
     {
         PersianCalendar calendar = new();
         DateTime today = DateTime.Today;
@@ -160,7 +214,11 @@
         startMonthValue = currentMonth.ToString(CultureInfo.InvariantCulture);
         endYearValue = startYearValue;
         endMonthValue = Math.Min(12, currentMonth + 2).ToString(CultureInfo.InvariantCulture);
+    }
 
+    protected override async Task OnParametersSetAsync()
+    {
+        isLoading = true;
         try
         {
             await ReloadAsync();
@@ -183,7 +241,9 @@
     private async Task ReloadAsync()
     {
         PortalActor actor = await ActorFactory.CreateAsync();
-        pledges = (await CharityPledgeService.ListMineAsync(actor)).ToList();
+        result = await CharityPledgeService.ListMineAsync(
+            new CharityPledgeListQuery(Page, PageSize),
+            actor);
     }
 
     private Task OnModeChanged(string? value)
@@ -301,4 +361,10 @@
         string end = $"{PersianDateTimeFormatter.MonthNames[pledge.EndPersianMonth.Value - 1]} {PersianDateTimeFormatter.ToPersianDigits(pledge.EndPersianYear.Value.ToString(CultureInfo.InvariantCulture))}";
         return $"{start} تا {end}";
     }
+
+    private static string FormatNumber(long value) =>
+        PersianDateTimeFormatter.ToPersianDigits(value.ToString(CultureInfo.InvariantCulture));
+
+    private static string PageUrl(int page) =>
+        page <= 1 ? "/services/charity" : $"/services/charity?page={page}";
 }

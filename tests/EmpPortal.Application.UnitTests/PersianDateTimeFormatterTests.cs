@@ -36,4 +36,14 @@ public sealed class PersianDateTimeFormatterTests
     {
         Assert.Equal("1405/01/01 12:30", PersianDateTimeFormatter.NormalizeDigits("۱۴۰۵/۰۱/۰۱ ١٢:٣٠"));
     }
+
+    [Fact]
+    public void FormatsClockWithSeconds()
+    {
+        DateTime value = new(2026, 3, 21, 9, 5, 7);
+
+        string result = PersianDateTimeFormatter.FormatClock(value, usePersianDigits: false);
+
+        Assert.Equal("09:05:07", result);
+    }
 }

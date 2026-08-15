@@ -31,6 +31,8 @@ public sealed class RuntimeSettingsService(
         Integer("Session:AdRevalidationSeconds", "بازاعتبارسنجی AD", "فاصله کنترل وضعیت حساب بر حسب ثانیه", "نشست کاربران", 15, 60),
         Integer("Jwt:AccessTokenMinutes", "عمر JWT", "عمر Access Token بر حسب دقیقه", "توکن API", 1, 15),
         Text("Portal:Title", "عنوان پرتال", "عنوان نمایشی سامانه", "ظاهر و لینک‌ها", 120),
+        Text(PortalRuntimeSettingKeys.LoginFooterText, "متن پایین صفحه ورود", "متن نمایشی پایین فرم ورود؛ برای پنهان‌کردن خالی بگذارید", "ظاهر و لینک‌ها", 250, required: false, requiresRestart: false),
+        Text(PortalRuntimeSettingKeys.BrandMark, "نشان منوی اصلی", "حرف یا نویسه کنار عنوان در منوی اصلی داشبورد؛ حداکثر 5 نویسه. خالی = نمایش پیش‌فرض اِ", "ظاهر و لینک‌ها", 5, required: false, requiresRestart: false),
         Url(PortalRuntimeSettingKeys.FoodReservationExternalUrl, "نشانی رزرو غذا", "آدرس سامانه خارجی رزرو غذا", "ظاهر و لینک‌ها", 2000, required: false, requiresRestart: false),
         Select("Forms:Pdf:License", "مجوز QuestPDF", "نوع مجوز تأییدشده برای تولید PDF", "فرم و PDF", ["Community", "Professional", "Enterprise"]),
         Text("Forms:Pdf:RegularFontPath", "فونت معمولی PDF", "مسیر نسبی یا کامل فونت معمولی", "فرم و PDF", 1000),

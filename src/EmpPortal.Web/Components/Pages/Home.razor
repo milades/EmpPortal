@@ -1,5 +1,6 @@
 @page "/"
 @attribute [Authorize]
+@implements IDisposable
 
 @using EmpPortal.Application.Authorization
 @using EmpPortal.Application.Configuration
@@ -26,6 +27,10 @@
         <div class="today-chip">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z" /></svg>
             <span><small>امروز</small><strong>@todayText</strong></span>
+            <span class="today-clock">
+                <small>ساعت</small>
+                <strong dir="ltr">@clockText</strong>
+            </span>
         </div>
     </header>
 
@@ -119,11 +124,16 @@
     private string displayName = "همکار گرامی";
     private string userUpn = string.Empty;
     private string? foodReservationUrl;
-    private readonly string todayText = PersianDateTimeFormatter.FormatDate(DateTimeOffset.Now);
+    private string todayText = PersianDateTimeFormatter.FormatDate(DateTimeOffset.Now);
+    private string clockText = PersianDateTimeFormatter.FormatClock(DateTimeOffset.Now);
+    private PeriodicTimer? clockTimer;
+    private readonly CancellationTokenSource clockCts = new();
     private string PortalTitle => Configuration["Portal:Title"] ?? "پرتال کارمندی";
 
     protected override async Task OnInitializedAsync()
     {
+        RefreshClock();
+        _ = RunClockAsync();
         AuthenticationState state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         displayName = state.User.FindFirst("display_name")?.Value ?? state.User.Identity?.Name ?? "همکار گرامی";
         userUpn = state.User.Identity?.Name ?? "حساب سازمانی";
@@ -157,4 +167,37 @@
     private string FormatMetric(long value) => isLoading
         ? "…"
         : PersianDateTimeFormatter.ToPersianDigits(value.ToString());
+
+    private void RefreshClock()
+    {
+        DateTimeOffset now = DateTimeOffset.Now;
+        todayText = PersianDateTimeFormatter.FormatDate(now);
+        clockText = PersianDateTimeFormatter.FormatClock(now);
+    }
+
+    private async Task RunClockAsync()
+    {
+        clockTimer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        try
+        {
+            while (await clockTimer.WaitForNextTickAsync(clockCts.Token))
+            {
+                RefreshClock();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    public void Dispose()
+    {
+        clockCts.Cancel();
+        clockTimer?.Dispose();
+        clockCts.Dispose();
+    }
 }

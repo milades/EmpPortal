@@ -42,10 +42,10 @@
 }
 
 .sidebar-brand strong {
-    font-size: .94rem;
+    font-size: .8rem;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
+    word-wrap: break-word;
 }
 
 .sidebar-brand small,
@@ -62,10 +62,17 @@
     color: white;
     display: inline-flex;
     flex: 0 0 auto;
-    font-size: 1.15rem;
+    font-size: 1.05rem;
     font-weight: 800;
     height: 2.55rem;
     justify-content: center;
+    letter-spacing: -.04em;
+    max-width: 2.55rem;
+    min-width: 2.55rem;
+    overflow: hidden;
+    padding: 0 .2rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     width: 2.55rem;
 }
 

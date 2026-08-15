@@ -74,8 +74,8 @@
                 }
             </header>
             <div class="payslip-controls">
-                <label>پلاک
-                    <input class="form-control polished-input" @bind="plateNumber" maxlength="32" />
+                <label class="iranian-plate-field">پلاک
+                    <IranianPlateInput Value="@plateNumber" ValueChanged="OnPlateChanged" />
                 </label>
                 <label>نوع خودرو
                     <SearchableSelect Options="typeOptions" Value="@vehicleType" ValueChanged="OnVehicleTypeChanged" Placeholder="انتخاب نوع" />
@@ -143,7 +143,7 @@
                         @foreach (PersonnelVehicleData vehicle in file.Vehicles)
                         {
                             <tr class="@(editingVehicleId == vehicle.Id ? "is-selected" : null)">
-                                <td>@vehicle.PlateNumber</td>
+                                <td><IranianPlateInput Value="@vehicle.PlateNumber" ReadOnly="true" /></td>
                                 <td>@vehicle.VehicleType</td>
                                 <td>@(vehicle.Model ?? "—")</td>
                                 <td>@(vehicle.Trim ?? "—")</td>
@@ -246,6 +246,12 @@
             messageClass = "error"; message = exception.Message;
         }
         finally { isBusy = false; }
+    }
+
+    private Task OnPlateChanged(string value)
+    {
+        plateNumber = value;
+        return Task.CompletedTask;
     }
 
     private Task OnVehicleTypeChanged(string? value)
@@ -417,7 +423,7 @@
             await PersonnelFileService.UpsertVehicleAsync(
                 actor,
                 editingVehicleId,
-                plateNumber,
+                IranianLicensePlate.Normalize(plateNumber),
                 resolvedType,
                 resolvedTrim,
                 resolvedModel,

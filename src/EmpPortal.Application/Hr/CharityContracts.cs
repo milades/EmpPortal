@@ -3,6 +3,14 @@ using EmpPortal.Domain.Hr;
 
 namespace EmpPortal.Application.Hr;
 
+public sealed record CharityPledgeListQuery(int Page, int PageSize);
+
+public sealed record PagedResult<T>(
+    IReadOnlyList<T> Items,
+    long TotalCount,
+    int Page,
+    int PageSize);
+
 public sealed record CharityPledgeData(
     Guid Id,
     decimal Amount,
@@ -37,7 +45,8 @@ public sealed record CharityPledgeAdminRow(
 
 public interface ICharityPledgeService
 {
-    public Task<IReadOnlyList<CharityPledgeData>> ListMineAsync(
+    public Task<PagedResult<CharityPledgeData>> ListMineAsync(
+        CharityPledgeListQuery query,
         PortalActor actor,
         CancellationToken cancellationToken = default);
 
@@ -63,7 +72,8 @@ public interface ICharityPledgeService
         Guid pledgeId,
         CancellationToken cancellationToken = default);
 
-    public Task<IReadOnlyList<CharityPledgeAdminRow>> ListAllForAdminAsync(
+    public Task<PagedResult<CharityPledgeAdminRow>> ListAllForAdminAsync(
+        CharityPledgeListQuery query,
         PortalActor actor,
         CancellationToken cancellationToken = default);
 

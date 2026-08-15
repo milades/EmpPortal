@@ -47,6 +47,8 @@ IIS یا Secret Store سازمانی خوانده می‌شوند.
 | `Session:AdRevalidationSeconds` | `15` | ۱۵ تا ۶۰ ثانیه برای Circuit باز |
 | `Jwt:AccessTokenMinutes` | `5` | ۱ تا ۱۵ دقیقه و حداکثر تا پایان Session |
 | `Portal:Title` | `پرتال کارمندی` | حداکثر ۱۲۰ نویسه |
+| `Portal:LoginFooterText` | `طراحی و پیاده سازی` | متن اختیاری پایین صفحه ورود، حداکثر ۲۵۰ نویسه؛ اعمال فوری |
+| `Portal:BrandMark` | `اِ` | حرف یا نویسه نشان منوی اصلی، حداکثر ۴ نویسه؛ اعمال فوری. خالی = پیش‌فرض `اِ` |
 | `Portal:FoodReservationExternalUrl` | خالی | URL اختیاری HTTP/HTTPS؛ اعمال فوری |
 | `Forms:Pdf:License` | `Professional` | Community، Professional یا Enterprise |
 | `Forms:Pdf:RegularFontPath` | فونت Vazirmatn | مسیر فونت معمولی |
@@ -67,5 +69,8 @@ IIS یا Secret Store سازمانی خوانده می‌شوند.
   Plan اعمال شود.
 - تغییر `BootstrapAdministrator:Upn` نقش مدیرهای قبلی را حذف نمی‌کند؛ مدیریت Role پس از
   Bootstrap از SQL و پنل مدیریتی انجام می‌شود.
+- هنگام ورود، نقش `Employee` تنها نقش خودکار همه کاربران است. فقط حساب منطبق با
+  `BootstrapAdministrator:Upn` نقش `SystemAdministrator` را نیز خودکار دریافت می‌کند؛
+  سایر نقش‌ها صرفاً از پنل مدیریت دسترسی‌ها تخصیص داده می‌شوند.
 - مجوز QuestPDF از پنل قابل تغییر است، اما برنامه در Production با مقدار خالی یا `Evaluation`
   شروع نمی‌شود. این تنظیم با لایسنس Stimulsoft فیش حقوقی مستقل است.

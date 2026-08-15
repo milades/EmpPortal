@@ -62,6 +62,7 @@ public sealed class PersonnelFileService(
         CancellationToken cancellationToken = default)
     {
         await EnsureCanViewAsync(actor, cancellationToken);
+        string normalizedPlate = IranianLicensePlate.Normalize(plateNumber);
         await using PortalDbContext dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
         PersonnelVehicle vehicle;
@@ -69,7 +70,7 @@ public sealed class PersonnelFileService(
         {
             vehicle = PersonnelVehicle.Create(
                 actor.UserId,
-                plateNumber,
+                normalizedPlate,
                 vehicleType,
                 trim,
                 model,
@@ -84,7 +85,7 @@ public sealed class PersonnelFileService(
             vehicle = await dbContext.PersonnelVehicles
                 .FirstOrDefaultAsync(item => item.Id == vehicleId && item.UserId == actor.UserId, cancellationToken)
                 ?? throw new KeyNotFoundException("خودرو یافت نشد.");
-            vehicle.Update(plateNumber, vehicleType, trim, model, color, notes, actor.UserId, nowUtc);
+            vehicle.Update(normalizedPlate, vehicleType, trim, model, color, notes, actor.UserId, nowUtc);
         }
 
         dbContext.AuditEvents.Add(AuditEvent.Create(

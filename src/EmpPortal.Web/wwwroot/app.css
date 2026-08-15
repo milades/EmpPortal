@@ -2201,6 +2201,15 @@ button:disabled,
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
 }
 
+.iranian-plate-field {
+    color: #344054;
+    display: grid;
+    font-size: .78rem;
+    font-weight: 800;
+    gap: .4rem;
+    grid-column: 1 / -1;
+}
+
 .payslip-viewer {
     background: #fff;
     border: 1px solid #e4e7ec;

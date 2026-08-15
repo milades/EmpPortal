@@ -1,0 +1,184 @@
+@using EmpPortal.Application.Hr
+@using EmpPortal.Application.Localization
+
+<div class="iranian-plate @(ReadOnly ? "is-readonly" : null) @(IsComplete ? "is-complete" : null)"
+     dir="ltr"
+     role="group"
+     aria-label="@(ReadOnly ? "پلاک خودرو" : "ورود پلاک خودرو")">
+    <div class="iranian-plate-iran" aria-hidden="true">
+        <span class="iranian-plate-flag">
+            <i></i><i></i><i></i>
+        </span>
+        <strong>I.R.</strong>
+        <small>IRAN</small>
+    </div>
+
+    @if (ReadOnly)
+    {
+        @if (parsed is { } parts)
+        {
+            <span class="iranian-plate-series">@ToDisplayDigits(parts.Series)</span>
+            <span class="iranian-plate-letter">@parts.Letter</span>
+            <span class="iranian-plate-number">@ToDisplayDigits(parts.Number)</span>
+            <div class="iranian-plate-province">
+                <small>ایران</small>
+                <strong>@ToDisplayDigits(parts.Province)</strong>
+            </div>
+        }
+        else
+        {
+            <span class="iranian-plate-fallback">@(string.IsNullOrWhiteSpace(Value) ? "—" : Value)</span>
+        }
+    }
+    else
+    {
+        <input class="iranian-plate-series"
+               @ref="seriesInput"
+               value="@ToDisplayDigits(series)"
+               maxlength="2"
+               inputmode="numeric"
+               autocomplete="off"
+               spellcheck="false"
+               aria-label="دو رقم سمت چپ پلاک"
+               placeholder="۱۲"
+               @oninput="OnSeriesInputAsync" />
+        <select class="iranian-plate-letter"
+                @ref="letterSelect"
+                value="@letter"
+                aria-label="حرف پلاک"
+                @onchange="OnLetterChangedAsync">
+            <option value="">—</option>
+            @foreach (string candidate in IranianLicensePlate.Letters)
+            {
+                <option value="@candidate">@candidate</option>
+            }
+        </select>
+        <input class="iranian-plate-number"
+               @ref="numberInput"
+               value="@ToDisplayDigits(number)"
+               maxlength="3"
+               inputmode="numeric"
+               autocomplete="off"
+               spellcheck="false"
+               aria-label="سه رقم پلاک"
+               placeholder="۳۴۵"
+               @oninput="OnNumberInputAsync" />
+        <div class="iranian-plate-province">
+            <small>ایران</small>
+            <input @ref="provinceInput"
+                   value="@ToDisplayDigits(province)"
+                   maxlength="2"
+                   inputmode="numeric"
+                   autocomplete="off"
+                   spellcheck="false"
+                   aria-label="کد استان پلاک"
+                   placeholder="۲۲"
+                   @oninput="OnProvinceInputAsync" />
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string? Value { get; set; }
+
+    [Parameter]
+    public EventCallback<string> ValueChanged { get; set; }
+
+    [Parameter]
+    public bool ReadOnly { get; set; }
+
+    private string series = string.Empty;
+    private string letter = string.Empty;
+    private string number = string.Empty;
+    private string province = string.Empty;
+    private string? loadedValue;
+    private IranianLicensePlateParts? parsed;
+    private ElementReference seriesInput;
+    private ElementReference letterSelect;
+    private ElementReference numberInput;
+    private ElementReference provinceInput;
+
+    private bool IsComplete =>
+        series.Length == 2 &&
+        number.Length == 3 &&
+        province.Length == 2 &&
+        !string.IsNullOrWhiteSpace(letter);
+
+    protected override void OnParametersSet()
+    {
+        string normalizedValue = Value?.Trim() ?? string.Empty;
+        if (string.Equals(normalizedValue, loadedValue, StringComparison.Ordinal))
+        {
+            parsed = IranianLicensePlate.TryParse(normalizedValue, out IranianLicensePlateParts current)
+                ? current
+                : null;
+            return;
+        }
+
+        loadedValue = normalizedValue;
+        if (IranianLicensePlate.TryParse(normalizedValue, out IranianLicensePlateParts parts))
+        {
+            series = parts.Series;
+            letter = parts.Letter;
+            number = parts.Number;
+            province = parts.Province;
+            parsed = parts;
+            return;
+        }
+
+        series = letter = number = province = string.Empty;
+        parsed = null;
+    }
+
+    private async Task OnSeriesInputAsync(ChangeEventArgs args)
+    {
+        series = IranianLicensePlate.KeepDigits(args.Value?.ToString(), 2);
+        await PublishAsync();
+        if (series.Length == 2)
+        {
+            await letterSelect.FocusAsync();
+        }
+    }
+
+    private async Task OnLetterChangedAsync(ChangeEventArgs args)
+    {
+        letter = args.Value?.ToString() ?? string.Empty;
+        await PublishAsync();
+        if (!string.IsNullOrWhiteSpace(letter))
+        {
+            await numberInput.FocusAsync();
+        }
+    }
+
+    private async Task OnNumberInputAsync(ChangeEventArgs args)
+    {
+        number = IranianLicensePlate.KeepDigits(args.Value?.ToString(), 3);
+        await PublishAsync();
+        if (number.Length == 3)
+        {
+            await provinceInput.FocusAsync();
+        }
+    }
+
+    private async Task OnProvinceInputAsync(ChangeEventArgs args)
+    {
+        province = IranianLicensePlate.KeepDigits(args.Value?.ToString(), 2);
+        await PublishAsync();
+    }
+
+    private async Task PublishAsync()
+    {
+        string value = IsComplete
+            ? IranianLicensePlate.Canonical(series, letter, number, province)
+            : string.Empty;
+        loadedValue = value;
+        parsed = IsComplete
+            ? new IranianLicensePlateParts(series, letter, number, province)
+            : null;
+        await ValueChanged.InvokeAsync(value);
+    }
+
+    private static string ToDisplayDigits(string value) =>
+        PersianDateTimeFormatter.ToPersianDigits(value);
+}

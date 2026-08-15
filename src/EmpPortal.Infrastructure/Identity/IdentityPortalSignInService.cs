@@ -120,7 +120,7 @@ public sealed class IdentityPortalSignInService(
                 cancellationToken);
         }
 
-        IdentityResult roleResult = await EnsureRolesAsync(user, identity.Upn);
+        IdentityResult roleResult = await EnsureAutomaticRolesAsync(user, identity.Upn);
         if (!roleResult.Succeeded)
         {
             return await RecordFailedSignInAsync(
@@ -188,7 +188,7 @@ public sealed class IdentityPortalSignInService(
         return new PortalSignInResult(status);
     }
 
-    private async Task<IdentityResult> EnsureRolesAsync(ApplicationUser user, string upn)
+    private async Task<IdentityResult> EnsureAutomaticRolesAsync(ApplicationUser user, string upn)
     {
         foreach ((string roleName, string description) in PortalRoles.SystemRoleSeed)
         {
@@ -199,26 +199,24 @@ public sealed class IdentityPortalSignInService(
             }
         }
 
-        if (!await userManager.IsInRoleAsync(user, PortalRoles.Employee))
+        IReadOnlyList<string> requiredRoles = PortalAutomaticRolePolicy.GetRequiredRoles(
+            upn,
+            bootstrapAdministratorOptions.Value.Upn);
+        foreach (string roleName in requiredRoles)
         {
-            IdentityResult employeeAssignment = await userManager.AddToRoleAsync(
-                user,
-                PortalRoles.Employee);
-            if (!employeeAssignment.Succeeded)
+            if (await userManager.IsInRoleAsync(user, roleName))
             {
-                return employeeAssignment;
+                continue;
+            }
+
+            IdentityResult assignmentResult = await userManager.AddToRoleAsync(user, roleName);
+            if (!assignmentResult.Succeeded)
+            {
+                return assignmentResult;
             }
         }
 
-        string bootstrapUpn = bootstrapAdministratorOptions.Value.Upn.Trim();
-        if (!string.Equals(upn, bootstrapUpn, StringComparison.OrdinalIgnoreCase))
-        {
-            return IdentityResult.Success;
-        }
-
-        return await userManager.IsInRoleAsync(user, PortalRoles.SystemAdministrator)
-            ? IdentityResult.Success
-            : await userManager.AddToRoleAsync(user, PortalRoles.SystemAdministrator);
+        return IdentityResult.Success;
     }
 
     private async Task<IdentityResult> EnsureRoleExistsAsync(string roleName, string description)

@@ -2,6 +2,7 @@
 @attribute [ExcludeFromInteractiveRouting]
 
 @using System.ComponentModel.DataAnnotations
+@using EmpPortal.Application.Configuration
 @using EmpPortal.Application.Identity
 @using EmpPortal.Web.Components.Account
 @using EmpPortal.Web.Security
@@ -9,6 +10,7 @@
 @using Microsoft.AspNetCore.Identity
 
 @inject IPortalSignInService PortalSignInService
+@inject IRuntimeSettingsService RuntimeSettingsService
 @inject IdentityRedirectManager RedirectManager
 @inject ILogger<Login> Logger
 @inject PortalAuthenticationOptions AuthenticationOptions
@@ -99,10 +101,13 @@
         </EditForm>
     }
 </section>
-<p style="    font-size: 12px;
-margin-top: 10px;">طراحی و پیاده سازی : مدیریت فناوری اطلاعات و ارتباطات شرکت سوخت راکتور های هسته ای</p>
+@if (!string.IsNullOrWhiteSpace(loginFooterText))
+{
+    <p style="font-size: 12px; margin-top: 10px;">@loginFooterText</p>
+}
 @code {
     private string? errorMessage;
+    private string? loginFooterText;
     private string PortalTitle => Configuration["Portal:Title"] ?? "پرتال کارمندی";
 
     [CascadingParameter]
@@ -120,6 +125,9 @@ margin-top: 10px;">طراحی و پیاده سازی : مدیریت فناوری
     protected override async Task OnInitializedAsync()
     {
         Input ??= new LoginInput();
+        loginFooterText = await RuntimeSettingsService.GetValueAsync(
+            PortalRuntimeSettingKeys.LoginFooterText,
+            HttpContext.RequestAborted);
 
         if (SsoError)
         {

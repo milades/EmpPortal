@@ -16,8 +16,11 @@
             <aside class="ta-sidebar" aria-label="منوی اصلی">
                 <div class="sidebar-brand-row">
                     <a class="sidebar-brand" href="/" @onclick="CloseSidebar">
-                        <span class="brand-mark" aria-hidden="true">اِ</span>
-                        <span><strong>@PortalTitle</strong><small>سامانه خدمات سازمانی</small></span>
+                        @if (!string.IsNullOrWhiteSpace(brandMark))
+                        {
+                            <span class="brand-mark" aria-hidden="true">@brandMark</span>
+                        }
+                        <span><strong>@PortalTitle</strong>@* <small>سامانه خدمات سازمانی</small> *@</span>
                     </a>
                     <button type="button" class="sidebar-close" aria-label="بستن منو" @onclick="CloseSidebar">×</button>
                 </div>
@@ -200,12 +203,14 @@
     private bool isConfirmingLogout;
     private IReadOnlySet<string> grantedResources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     private string? foodReservationUrl;
+    private string? brandMark;
     private string PortalTitle => Configuration["Portal:Title"] ?? "پرتال کارمندی";
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
+            brandMark = await RuntimeSettings.GetValueAsync(PortalRuntimeSettingKeys.BrandMark) ?? "اِ";
             PortalActor actor = await ActorFactory.CreateAsync();
             await AccessEvaluator.EnsureDefaultsAsync();
             grantedResources = await AccessEvaluator.GetGrantedResourceKeysAsync(actor);

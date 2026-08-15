@@ -18,17 +18,31 @@ public sealed class CharityPledgeService(
 {
     private const int MaximumExportRows = 50_000;
 
-    public async Task<IReadOnlyList<CharityPledgeData>> ListMineAsync(
+    public async Task<PagedResult<CharityPledgeData>> ListMineAsync(
+        CharityPledgeListQuery query,
         PortalActor actor,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(query);
         await EnsureCanViewAsync(actor, cancellationToken);
+        int page = Math.Max(1, query.Page);
+        int pageSize = Math.Clamp(query.PageSize, 1, 100);
         await using PortalDbContext dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-        CharityPledge[] pledges = await dbContext.CharityPledges.AsNoTracking()
-            .Where(pledge => pledge.UserId == actor.UserId)
+        IQueryable<CharityPledge> pledgesQuery = dbContext.CharityPledges.AsNoTracking()
+            .Where(pledge => pledge.UserId == actor.UserId);
+        long totalCount = await pledgesQuery.LongCountAsync(cancellationToken);
+        page = ClampPage(page, pageSize, totalCount);
+        CharityPledge[] pledges = await pledgesQuery
             .OrderByDescending(pledge => pledge.CreatedAtUtc)
+            .ThenByDescending(pledge => pledge.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToArrayAsync(cancellationToken);
-        return pledges.Select(MapMine).ToArray();
+        return new PagedResult<CharityPledgeData>(
+            pledges.Select(MapMine).ToArray(),
+            totalCount,
+            page,
+            pageSize);
     }
 
     public async Task<CharityPledgeData> CreateAsync(
@@ -155,16 +169,23 @@ public sealed class CharityPledgeService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<CharityPledgeAdminRow>> ListAllForAdminAsync(
+    public async Task<PagedResult<CharityPledgeAdminRow>> ListAllForAdminAsync(
+        CharityPledgeListQuery query,
         PortalActor actor,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(query);
         await EnsureCanManageAsync(actor, cancellationToken);
+        int page = Math.Max(1, query.Page);
+        int pageSize = Math.Clamp(query.PageSize, 1, 100);
         await using PortalDbContext dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-        var rows = await (
+        long totalCount = await dbContext.CharityPledges.AsNoTracking()
+            .LongCountAsync(cancellationToken);
+        page = ClampPage(page, pageSize, totalCount);
+        CharityPledgeAdminRow[] rows = await (
             from pledge in dbContext.CharityPledges.AsNoTracking()
             join user in dbContext.Users.AsNoTracking() on pledge.UserId equals user.Id
-            orderby pledge.CreatedAtUtc descending
+            orderby pledge.CreatedAtUtc descending, pledge.Id descending
             select new CharityPledgeAdminRow(
                 pledge.Id,
                 pledge.UserId,
@@ -180,8 +201,11 @@ public sealed class CharityPledgeService(
                 pledge.Note,
                 pledge.IsConfirmed,
                 pledge.CreatedAtUtc,
-                pledge.ResultsExportedAtUtc)).ToArrayAsync(cancellationToken);
-        return rows;
+                pledge.ResultsExportedAtUtc))
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToArrayAsync(cancellationToken);
+        return new PagedResult<CharityPledgeAdminRow>(rows, totalCount, page, pageSize);
     }
 
     public async Task DeleteAsAdminAsync(
@@ -334,6 +358,14 @@ public sealed class CharityPledgeService(
             pledge.CreatedAtUtc,
             pledge.ResultsExportedAtUtc,
             CanUserDelete: !pledge.IsResultsExported);
+
+    private static int ClampPage(int page, int pageSize, long totalCount)
+    {
+        int totalPages = totalCount == 0
+            ? 1
+            : Math.Max(1, (int)Math.Ceiling(Math.Min(totalCount, int.MaxValue) / (double)pageSize));
+        return Math.Min(page, totalPages);
+    }
 
     private static string SetSafeText(string? value)
     {

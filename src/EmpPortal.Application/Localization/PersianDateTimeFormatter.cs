@@ -41,6 +41,15 @@ public static class PersianDateTimeFormatter
         return usePersianDigits ? ToPersianDigits(formatted) : formatted;
     }
 
+    public static string FormatClock(DateTimeOffset? value, bool usePersianDigits = true) =>
+        value.HasValue ? FormatClock(value.Value.LocalDateTime, usePersianDigits) : "—";
+
+    public static string FormatClock(DateTime value, bool usePersianDigits = true)
+    {
+        string formatted = value.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
+        return usePersianDigits ? ToPersianDigits(formatted) : formatted;
+    }
+
     public static PersianDateParts GetParts(DateTime dateTime)
     {
         PersianCalendar calendar = new();

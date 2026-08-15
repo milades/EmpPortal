@@ -34,8 +34,13 @@
     background: #fff;
     border: 1px solid #e4e7ec;
     border-radius: 1rem;
-    gap: .65rem;
+    gap: .85rem;
     padding: .75rem 1rem;
+}
+
+.today-clock {
+    border-inline-start: 1px solid #e4e7ec;
+    padding-inline-start: .85rem;
 }
 
 .today-chip svg,
@@ -70,6 +75,14 @@
 .today-chip strong {
     font-size: .88rem;
     font-weight: 800;
+}
+
+.today-clock strong {
+    direction: ltr;
+    font-feature-settings: "tnum";
+    font-variant-numeric: tabular-nums;
+    letter-spacing: .06em;
+    unicode-bidi: isolate;
 }
 
 .metrics-grid {
@@ -340,8 +353,8 @@
 }
 
 @media (max-width: 40rem) {
-    .dashboard-heading { align-items: flex-start; gap: 1rem; }
-    .today-chip { display: none; }
+    .dashboard-heading { align-items: flex-start; flex-wrap: wrap; gap: 1rem; }
+    .today-chip { width: 100%; }
     .metrics-grid { grid-template-columns: 1fr; }
     .metric-card { min-height: 6.5rem; }
     .service-tile-grid { grid-template-columns: 1fr 1fr; }
