@@ -8,7 +8,8 @@
   },
   "scripts": {
     "css:build": "tailwindcss -i ./src/EmpPortal.Web/Styles/tailwind.css -o ./src/EmpPortal.Web/wwwroot/css/tailwind.css --minify",
-    "css:watch": "tailwindcss -i ./src/EmpPortal.Web/Styles/tailwind.css -o ./src/EmpPortal.Web/wwwroot/css/tailwind.css --watch"
+    "css:watch": "tailwindcss -i ./src/EmpPortal.Web/Styles/tailwind.css -o ./src/EmpPortal.Web/wwwroot/css/tailwind.css --watch",
+    "test:browser-auth": "node --test tests/browser-auth-token-store.test.mjs"
   },
   "devDependencies": {
     "@tailwindcss/cli": "4.3.0",

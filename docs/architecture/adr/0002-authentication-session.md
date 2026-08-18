@@ -14,7 +14,8 @@
 - `WindowsSso` فقط برای Endpoint انتخابی SSO است.
 - ورود دستی با UPN و LDAPS انجام می‌شود.
 - مرورگر از Application Cookie استاندارد Identity با تنظیمات HttpOnly/Secure استفاده می‌کند.
-- API از JWT Bearer کوتاه‌عمر استفاده می‌کند.
+- API از JWT Bearer کوتاه‌عمر استفاده می‌کند؛ مرورگر آن را فقط در `localStorage` نگه می‌دارد و
+  برای درخواست API در Header استاندارد `Authorization: Bearer` می‌فرستد.
 - هر دو به ApplicationSession دارای `sid` در SQL وابسته‌اند.
 - حداکثر Session سه ساعت، Idle سی دقیقه و حداکثر Session هم‌زمان سه عدد است.
 - وضعیت حساب AD حداکثر هر ۶۰ ثانیه بازاعتبارسنجی می‌شود.
@@ -23,6 +24,9 @@
 
 - Logout و Disabled User پیش از پایان عمر JWT قابل ابطال‌اند.
 - JWT کاملاً Stateless نیست و Session Store بخشی از مرز امنیتی است.
-- Token در دسترس JavaScript یا Local Storage قرار نمی‌گیرد.
+- JWT به‌دلیل محدودیت Cookie و Policy سازمان در `localStorage` در دسترس JavaScript قرار دارد؛
+  عمر پنج‌دقیقه‌ای، عدم ثبت Token در Log، پاک‌سازی هنگام Logout/انقضای Session و اعتبارسنجی
+  `sid` سمت سرور کنترل‌های جبرانی این تصمیم‌اند. Application Cookie استاندارد Identity همچنان
+  `HttpOnly` و مستقل از JWT باقی می‌ماند.
 - Microsoft.Identity.Web استفاده نمی‌شود، زیرا Provider هدف Microsoft Entra است؛
   سامانه فعلی از AD DS داخلی، Windows Authentication و LDAPS استفاده می‌کند.

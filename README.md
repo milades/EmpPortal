@@ -10,8 +10,8 @@ ASP.NET Core Identity، Active Directory، IIS و SQL Server 2022.
   interactive اجرا می‌شوند.
 - Active Directory فقط هویت SSO یا UPN/Password را اثبات می‌کند. ایجاد User، Role، Cookie،
   Security Stamp و Sign-in کاملاً توسط Microsoft ASP.NET Core Identity انجام می‌شود.
-- Cookie مرجع Session مرورگر است؛ JWT کوتاه‌عمر فقط برای API صادر می‌شود و هر دو به Session
-  سمت سرور متصل‌اند.
+- Cookie استاندارد Identity مرجع Session مرورگر است؛ JWT کوتاه‌عمر API جداگانه در
+  `localStorage` مرورگر نگه‌داری می‌شود و هر دو به Session سمت سرور متصل‌اند.
 - هیچ CDN یا فونت اینترنتی در Runtime استفاده نمی‌شود.
 
 ## اجرای محیط توسعه

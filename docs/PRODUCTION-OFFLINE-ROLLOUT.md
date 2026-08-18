@@ -487,6 +487,8 @@ https://portal.corp.example/health/ready  → 200 (وابسته به SQL)
 
 - چند نشست هم‌زمان طبق سقف تنظیمات
 - غیرفعال کردن یک حساب آزمایشی در AD و اطمینان از قطع دسترسی در بازه SLA
+- در DevTools مرورگر تأیید شود JWT با کلید `empportal.auth.access-token` در `localStorage` است،
+  Cookie جداگانه‌ای برای JWT وجود ندارد و Logout آن را حذف می‌کند
 
 ### ۸ـ۴. فرم‌ساز / ثبت‌نام‌ها
 

@@ -116,7 +116,8 @@ Restart-WebAppPool -Name 'EmpPortal'
 
 1. `/health/live` و `/health/ready` هر دو `200` بدهند.
 2. SSO، ورود دستی UPN/Password، داشبورد و Logout آزموده شوند.
-3. صدور JWT از endpoint محافظت‌شده و فراخوانی `/api/me` آزموده شود.
+3. صدور JWT، وجود آن در `localStorage` با کلید `empportal.auth.access-token`، نبود JWT در Cookie
+   و فراخوانی `/api/me` با Header نوع Bearer آزموده شود.
 4. Disabled کردن حساب آزمایشی، رد Cookie/JWT و Revoke نشست‌ها تأیید شود.
 5. Audit ورود موفق/ناموفق، خروج و تغییر تنظیمات در SQL کنترل شود.
 6. یک فرم آزمایشی ساخته و منتشر شود؛ ثبت پاسخ، گزارش، Excel و PDF آن با نقش‌های مجاز کنترل شوند.

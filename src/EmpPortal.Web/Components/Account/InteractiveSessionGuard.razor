@@ -1,17 +1,30 @@
 @implements IDisposable
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JavaScript
+@inject ILogger<InteractiveSessionGuard> Logger
 
 @code {
     private IDisposable? locationChangingRegistration;
     private bool redirecting;
 
-    protected override void OnAfterRender(bool firstRender)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (!firstRender)
         {
-            locationChangingRegistration = NavigationManager.RegisterLocationChangingHandler(
-                ValidateNavigationAsync);
+            return;
+        }
+
+        locationChangingRegistration = NavigationManager.RegisterLocationChangingHandler(
+            ValidateNavigationAsync);
+
+        try
+        {
+            // Always replace a token left by a previous browser session or SSO identity.
+            await JavaScript.InvokeVoidAsync("empPortalAuth.ensureAccessToken", true);
+        }
+        catch (JSException exception)
+        {
+            Logger.LogWarning(exception, "The browser access token could not be stored in localStorage.");
         }
     }
 

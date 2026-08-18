@@ -404,6 +404,9 @@ app.MapPost("/api/auth/token", async (
     PortalAccessTokenService tokenService,
     HttpContext httpContext) =>
 {
+    httpContext.Response.Headers.CacheControl = "no-store";
+    httpContext.Response.Headers.Pragma = "no-cache";
+
     try
     {
         await antiforgery.ValidateRequestAsync(httpContext);

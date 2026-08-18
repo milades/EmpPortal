@@ -438,6 +438,7 @@ Restart-WebAppPool -Name '{A8}'
 | L12 | PDF خروجی | ☐ Pass / ☐ Fail | __________ |
 | L13 | `/admin/settings` ذخیره + Restart + اعمال | ☐ Pass / ☐ Fail | __________ |
 | L14 | Audit ورود در SQL دیده می‌شود | ☐ Pass / ☐ Fail | __________ |
+| L15 | JWT در `localStorage` است، در Cookie نیست و با Logout پاک می‌شود | ☐ Pass / ☐ Fail | __________ |
 
 **تأیید L:** ☐ همه موارد غیر Skip برابر Pass هستند
 

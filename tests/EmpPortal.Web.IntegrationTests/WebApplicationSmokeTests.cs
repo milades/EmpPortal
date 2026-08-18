@@ -69,6 +69,26 @@ public sealed class WebApplicationSmokeTests : IClassFixture<PortalWebApplicatio
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Contains("no-store", response.Headers.CacheControl?.ToString(), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task BrowserAccessTokenScriptStoresJwtOnlyInLocalStorage()
+    {
+        using HttpClient client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        using HttpResponseMessage response = await client.GetAsync("/js/auth-token-store.js");
+        string script = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("window.localStorage", script, StringComparison.Ordinal);
+        Assert.Contains("localStorage.setItem(accessTokenKey", script, StringComparison.Ordinal);
+        Assert.Contains("/api/auth/token", script, StringComparison.Ordinal);
+        Assert.Contains("credentials: \"omit\"", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("document.cookie", script, StringComparison.OrdinalIgnoreCase);
+    }
 }
 
 public sealed class PortalWebApplicationFactory : WebApplicationFactory<Program>

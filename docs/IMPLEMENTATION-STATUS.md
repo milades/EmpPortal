@@ -42,7 +42,8 @@ Workflow تأیید، فایل/امضا و نمودارهای آماری برا�
 - Fake AD توسعه، SSO توسعه و Manual Login با UPN فرضی.
 - Windows SSO endpoint و Provider واقعی LDAPS با Certificate Validation و DC Failover.
 - نشست SQL با عمر مطلق ۱۸۰ دقیقه، Idle سی دقیقه و سقف سه نشست هم‌زمان.
-- JWT کوتاه‌عمر برای API با `sid`، Authorization Version و ابطال سمت سرور.
+- JWT کوتاه‌عمر برای API با `sid`، Authorization Version و ابطال سمت سرور؛ Token مرورگر در
+  `localStorage` ذخیره، در Logout پاک و فقط با Header نوع Bearer به API ارسال می‌شود.
 - خروج مستقل از Windows، ابطال Cookie/JWT، Rate Limit، Antiforgery و Security Headers.
 - Roleهای SQL، Bootstrap مدیر اولیه، صفحه تنظیمات Runtime و Audit امنیتی.
 - Bootstrap RTL، Tailwind pipeline، فونت Vazirmatn و تمام دارایی‌های Runtime به‌صورت محلی.

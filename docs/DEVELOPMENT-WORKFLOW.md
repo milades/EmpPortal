@@ -109,6 +109,8 @@ Pipeline باید علاوه بر موارد بالا این کنترل‌ها �
 - AD Provider فقط Credential/Identity را Verify می‌کند و مجاز به ایجاد Session نیست.
 - Password فقط در حافظه مسیر Login و تا پایان Bind حضور دارد.
 - Log کردن Headerهای Authorization، Cookie و Body ورود ممنوع است.
+- خواندن JWT از `localStorage` فقط از مسیر `empPortalAuth` مجاز است؛ Token نباید در DOM، Query
+  String، Log یا پیام خطا کپی شود و Logout باید آن را پاک کند.
 - تغییر Role/Permission باید `AuthorizationVersion` را افزایش دهد.
 - تغییر Domain یا Auth Policy باید Sessionهای متأثر را باطل کند.
 - Production با Fake Provider یا کلید توسعه باید Fail-fast شود.

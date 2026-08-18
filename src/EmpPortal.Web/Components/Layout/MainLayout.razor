@@ -5,6 +5,7 @@
 @inject IRuntimeSettingsService RuntimeSettings
 @inject EmpPortal.Web.Services.IConfirmationService ConfirmationService
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JavaScript
 @inject EmpPortal.Web.Security.PortalActorFactory ActorFactory
 @inject IPortalAccessEvaluator AccessEvaluator
 
@@ -245,6 +246,14 @@
                 "بله، خارج شو");
             if (confirmed)
             {
+                try
+                {
+                    await JavaScript.InvokeVoidAsync("empPortalAuth.clear");
+                }
+                catch (JSException)
+                {
+                    // A full navigation to the logout page clears localStorage as a fallback.
+                }
                 NavigationManager.NavigateTo("/account/logout?confirmed=true", forceLoad: true);
             }
         }
